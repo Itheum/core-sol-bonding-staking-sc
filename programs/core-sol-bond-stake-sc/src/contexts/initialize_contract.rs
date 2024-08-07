@@ -1,1 +1,1 @@
-
+// Initialize the contract
