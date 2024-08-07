@@ -12,3 +12,27 @@ fn compute_bond_score(lock_period: u64, current_timestamp: u64, unbond_timestamp
         }
     }
 }
+
+#[cfg(test)]
+mod compute_bond_score_tests {
+    use super::*;
+
+    use quickcheck::quickcheck;
+
+    quickcheck! {
+        fn test_compute_bond_score(lock_period: u64, current_timestamp: u64, unbond_timestamp: u64) -> bool {
+            let result = compute_bond_score(lock_period, current_timestamp, unbond_timestamp);
+
+            if current_timestamp >= unbond_timestamp {
+                result == 0
+            } else if lock_period == 0 {
+                result == 0
+            } else {
+                let difference = unbond_timestamp - current_timestamp;
+                let expected = (10000u64 / lock_period).saturating_mul(difference);
+
+                result == expected
+            }
+        }
+    }
+}
