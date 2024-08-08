@@ -28,7 +28,7 @@ pub mod core_sol_bond_stake_sc {
         lock_period: u64,
         bond_amount: u64,
     ) -> Result<()> {
-        ctx.accounts.initialize_contract(
+        ctx.accounts.initialize_contract_and_vault(
             &ctx.bumps,
             mint_of_token,
             mint_of_collection,
@@ -44,10 +44,6 @@ pub mod core_sol_bond_stake_sc {
     pub fn set_contract_state_inactive(ctx: Context<UpdateContract>) -> Result<()> {
         ctx.accounts
             .update_contract_state(State::Inactive.to_code())
-    }
-
-    pub fn update_mint_of_token(ctx: Context<UpdateContract>, mint_of_token: Pubkey) -> Result<()> {
-        ctx.accounts.update_mint_of_token(mint_of_token)
     }
 
     pub fn update_mint_of_collection(

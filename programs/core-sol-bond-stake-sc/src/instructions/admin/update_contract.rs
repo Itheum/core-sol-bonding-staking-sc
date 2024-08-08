@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{ContractState, ADMIN_PUBKEY, CONTRACT_STATE_SEED};
+use crate::{BondState, ADMIN_PUBKEY, CONTRACT_STATE_SEED};
 
 #[derive(Accounts)]
 pub struct UpdateContract<'info> {
@@ -9,7 +9,7 @@ pub struct UpdateContract<'info> {
         seeds=[CONTRACT_STATE_SEED.as_bytes()],
         bump=contract_state.bump,
     )]
-    pub contract_state: Account<'info, ContractState>,
+    pub contract_state: Account<'info, BondState>,
 
     #[account(
         mut,
@@ -20,11 +20,6 @@ pub struct UpdateContract<'info> {
 impl<'info> UpdateContract<'info> {
     pub fn update_contract_state(&mut self, state: u8) -> Result<()> {
         self.contract_state.contract_state = state;
-        Ok(())
-    }
-
-    pub fn update_mint_of_token(&mut self, mint_of_token: Pubkey) -> Result<()> {
-        self.contract_state.mint_of_token = mint_of_token;
         Ok(())
     }
 
