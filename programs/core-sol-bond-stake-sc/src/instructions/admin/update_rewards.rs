@@ -18,13 +18,8 @@ pub struct UpdateRewards<'info> {
     pub authority: Signer<'info>,
 }
 impl<'info> UpdateRewards<'info> {
-    pub fn set_rewards_state_active(&mut self) -> Result<()> {
-        self.rewards_state.rewards_state = State::Active.to_code();
-        Ok(())
-    }
-
-    pub fn set_rewards_state_inactive(&mut self) -> Result<()> {
-        self.rewards_state.rewards_state = State::Inactive.to_code();
+    pub fn update_rewards_state(&mut self, state: u8) -> Result<()> {
+        self.rewards_state.rewards_state = state;
         Ok(())
     }
 

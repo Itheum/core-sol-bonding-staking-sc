@@ -18,7 +18,7 @@ pub struct UpdateContract<'info> {
     pub authority: Signer<'info>,
 }
 impl<'info> UpdateContract<'info> {
-    pub fn update_contract_state(&mut self, state: u8) -> Result<()> {
+    pub fn update_bond_state(&mut self, state: u8) -> Result<()> {
         self.bond_state.bond_state = state;
         Ok(())
     }

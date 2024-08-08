@@ -41,13 +41,12 @@ pub mod core_sol_bond_stake_sc {
         )
     }
 
-    pub fn set_contract_state_active(ctx: Context<UpdateContract>) -> Result<()> {
-        ctx.accounts.update_contract_state(State::Active.to_code())
+    pub fn set_bond_state_active(ctx: Context<UpdateContract>) -> Result<()> {
+        ctx.accounts.update_bond_state(State::Active.to_code())
     }
 
-    pub fn set_contract_state_inactive(ctx: Context<UpdateContract>) -> Result<()> {
-        ctx.accounts
-            .update_contract_state(State::Inactive.to_code())
+    pub fn set_bond_state_inactive(ctx: Context<UpdateContract>) -> Result<()> {
+        ctx.accounts.update_bond_state(State::Inactive.to_code())
     }
 
     pub fn update_mint_of_collection(
@@ -68,11 +67,11 @@ pub mod core_sol_bond_stake_sc {
     //Rewards state
 
     pub fn set_rewards_state_active(ctx: Context<UpdateRewards>) -> Result<()> {
-        ctx.accounts.set_rewards_state_active()
+        ctx.accounts.update_rewards_state(State::Active.to_code())
     }
 
     pub fn set_rewards_state_inactive(ctx: Context<UpdateRewards>) -> Result<()> {
-        ctx.accounts.set_rewards_state_inactive()
+        ctx.accounts.update_rewards_state(State::Inactive.to_code())
     }
 
     pub fn update_rewards_per_slot(
