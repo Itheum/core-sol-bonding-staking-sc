@@ -4,7 +4,10 @@ use anchor_spl::{
     token::{Mint, Token, TokenAccount},
 };
 
-use crate::{BondState, State, VaultState, ADMIN_PUBKEY, CONTRACT_STATE_SEED, VAULT_OWNER_SEED};
+use crate::{
+    BondState, RewardsState, State, VaultState, ADMIN_PUBKEY, CONTRACT_STATE_SEED,
+    REWARDS_STATE_SEED, VAULT_OWNER_SEED,
+};
 
 #[derive(Accounts)]
 pub struct InitializeContract<'info> {
@@ -15,7 +18,7 @@ pub struct InitializeContract<'info> {
         bump,
         space=BondState::INIT_SPACE
     )]
-    pub contract_state: Account<'info, BondState>,
+    pub bond_state: Account<'info, BondState>,
 
     #[account(
         init,
@@ -37,6 +40,15 @@ pub struct InitializeContract<'info> {
     pub mint_of_token: Account<'info, Mint>,
 
     #[account(
+        init,
+        payer=authority,
+        seeds=[REWARDS_STATE_SEED.as_bytes()],
+        bump,
+        space=RewardsState::INIT_SPACE
+    )]
+    pub rewards_state: Account<'info, RewardsState>,
+
+    #[account(
         mut,
         address=ADMIN_PUBKEY,
     )]
@@ -48,20 +60,22 @@ pub struct InitializeContract<'info> {
 }
 
 impl<'info> InitializeContract<'info> {
-    pub fn initialize_contract_and_vault(
+    pub fn initialize_contract(
         &mut self,
         bumps: &InitializeContractBumps,
         mint_of_token: Pubkey,
         mint_of_collection: Pubkey,
         lock_period: u64,
         bond_amount: u64,
+        rewards_per_slot: u64,
+        max_apr: u64,
     ) -> Result<()> {
-        self.contract_state.set_inner(BondState {
-            bump: bumps.contract_state,
+        self.bond_state.set_inner(BondState {
+            bump: bumps.bond_state,
             mint_of_collection,
             lock_period,
             bond_amount,
-            contract_state: State::Inactive.to_code(),
+            bond_state: State::Inactive.to_code(),
             padding: [0; 128],
         });
 
@@ -71,6 +85,19 @@ impl<'info> InitializeContract<'info> {
             mint_of_token,
             total_bond_amount: 0,
             padding: [0; 64],
+        });
+
+        self.rewards_state.set_inner(RewardsState {
+            bump: bumps.rewards_state,
+            rewards_state: State::Inactive.to_code(),
+            rewards_reserve: 0,
+            accumulated_rewards: 0,
+            rewards_per_slot,
+            rewards_per_share: 0,
+
+            last_reward_slot: 0,
+            max_apr,
+            padding: [0; 128],
         });
 
         Ok(())

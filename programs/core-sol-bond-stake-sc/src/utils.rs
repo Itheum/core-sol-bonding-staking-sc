@@ -1,3 +1,5 @@
+use anchor_lang::prelude::*;
+
 fn compute_bond_score(lock_period: u64, current_timestamp: u64, unbond_timestamp: u64) -> u64 {
     if current_timestamp >= unbond_timestamp {
         0
@@ -33,6 +35,20 @@ mod compute_bond_score_tests {
 
                 result == expected
             }
+        }
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq)]
+pub enum State {
+    Inactive = 0,
+    Active = 1,
+}
+impl State {
+    pub fn to_code(&self) -> u8 {
+        match self {
+            State::Inactive => 0,
+            State::Active => 1,
         }
     }
 }

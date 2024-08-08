@@ -20,20 +20,24 @@ declare_id!("HtLmdHrUHszpc5i85NBHhrjtbkL5AFKThjCqrE9H1PYc");
 pub mod core_sol_bond_stake_sc {
     use super::*;
 
-    // Contract state
+    // Bond State
     pub fn initialize_contract(
         ctx: Context<InitializeContract>,
         mint_of_token: Pubkey,
         mint_of_collection: Pubkey,
         lock_period: u64,
         bond_amount: u64,
+        rewards_per_slot: u64,
+        max_apr: u64,
     ) -> Result<()> {
-        ctx.accounts.initialize_contract_and_vault(
+        ctx.accounts.initialize_contract(
             &ctx.bumps,
             mint_of_token,
             mint_of_collection,
             lock_period,
             bond_amount,
+            rewards_per_slot,
+            max_apr,
         )
     }
 
@@ -61,15 +65,7 @@ pub mod core_sol_bond_stake_sc {
         ctx.accounts.update_bond_amount(bond_amount)
     }
 
-    // Rewards state
-    pub fn initialize_rewards(
-        ctx: Context<InitializeRewards>,
-        rewards_per_slot: u64,
-        max_apr: u64,
-    ) -> Result<()> {
-        ctx.accounts
-            .initialize_rewards(&ctx.bumps, rewards_per_slot, max_apr)
-    }
+    //Rewards state
 
     pub fn set_rewards_state_active(ctx: Context<UpdateRewards>) -> Result<()> {
         ctx.accounts.set_rewards_state_active()
