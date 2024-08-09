@@ -23,8 +23,7 @@ pub mod core_sol_bond_stake_sc {
     // Bond State
     pub fn initialize_contract(
         ctx: Context<InitializeContract>,
-        mint_of_token: Pubkey,
-        mint_of_collection: Pubkey,
+        index: u8,
         lock_period: u64,
         bond_amount: u64,
         rewards_per_slot: u64,
@@ -32,8 +31,7 @@ pub mod core_sol_bond_stake_sc {
     ) -> Result<()> {
         ctx.accounts.initialize_contract(
             &ctx.bumps,
-            mint_of_token,
-            mint_of_collection,
+            index,
             lock_period,
             bond_amount,
             rewards_per_slot,
@@ -41,7 +39,7 @@ pub mod core_sol_bond_stake_sc {
         )
     }
 
-    pub fn set_bond_state_active(ctx: Context<UpdateBondConfig>) -> Result<()> {
+    pub fn set_bond_state_active(ctx: Context<UpdateBondConfig>, _index: u8) -> Result<()> {
         ctx.accounts.update_bond_state(State::Active.to_code())
     }
 
