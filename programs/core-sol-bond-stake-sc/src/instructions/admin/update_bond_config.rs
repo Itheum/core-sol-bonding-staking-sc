@@ -1,13 +1,13 @@
 use anchor_lang::prelude::*;
 
-use crate::{BondConfig, ADMIN_PUBKEY, CONTRACT_STATE_SEED};
+use crate::{BondConfig, ADMIN_PUBKEY, BOND_CONFIG_SEED};
 
 #[derive(Accounts)]
 #[instruction(index:u8)]
 pub struct UpdateBondConfig<'info> {
     #[account(
         mut,
-        seeds=[CONTRACT_STATE_SEED.as_bytes(), &index.to_be_bytes()],
+        seeds=[BOND_CONFIG_SEED.as_bytes(), &index.to_be_bytes()],
         bump=bond_state.bump,
     )]
     pub bond_state: Account<'info, BondConfig>,

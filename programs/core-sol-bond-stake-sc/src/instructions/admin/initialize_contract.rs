@@ -5,8 +5,8 @@ use anchor_spl::{
 };
 
 use crate::{
-    BondConfig, RewardsConfig, State, VaultState, ADMIN_PUBKEY, CONTRACT_STATE_SEED,
-    REWARDS_STATE_SEED, VAULT_OWNER_SEED,
+    BondConfig, RewardsConfig, State, VaultState, ADMIN_PUBKEY, BOND_CONFIG_SEED,
+    REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
 };
 
 #[derive(Accounts)]
@@ -15,7 +15,7 @@ pub struct InitializeContract<'info> {
     #[account(
         init,
         payer=authority,
-        seeds=[CONTRACT_STATE_SEED.as_bytes(),&index.to_be_bytes()],
+        seeds=[BOND_CONFIG_SEED.as_bytes(),&index.to_be_bytes()],
         bump,
         space=BondConfig::INIT_SPACE
     )]
@@ -44,7 +44,7 @@ pub struct InitializeContract<'info> {
     #[account(
         init,
         payer=authority,
-        seeds=[REWARDS_STATE_SEED.as_bytes()],
+        seeds=[REWARDS_CONFIG_SEED.as_bytes()],
         bump,
         space=RewardsConfig::INIT_SPACE
     )]

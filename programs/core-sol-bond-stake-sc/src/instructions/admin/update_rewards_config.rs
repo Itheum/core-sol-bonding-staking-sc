@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
 
-use crate::{RewardsConfig, ADMIN_PUBKEY, REWARDS_STATE_SEED};
+use crate::{RewardsConfig, ADMIN_PUBKEY, REWARDS_CONFIG_SEED};
 
 #[derive(Accounts)]
 pub struct UpdateRewardsConfig<'info> {
     #[account(
         mut,
-        seeds=[REWARDS_STATE_SEED.as_bytes()],
+        seeds=[REWARDS_CONFIG_SEED.as_bytes()],
         bump=rewards_state.bump,
     )]
     pub rewards_state: Account<'info, RewardsConfig>,

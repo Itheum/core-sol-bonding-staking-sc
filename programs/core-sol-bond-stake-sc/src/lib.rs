@@ -39,26 +39,47 @@ pub mod core_sol_bond_stake_sc {
         )
     }
 
+    // Create new bond config
+    pub fn create_bond_config(
+        ctx: Context<CreateBondConfig>,
+        index: u8,
+        lock_period: u64,
+        bond_amount: u64,
+    ) -> Result<()> {
+        ctx.accounts
+            .create_bond_config(index, &ctx.bumps, lock_period, bond_amount)
+    }
+
+    // Update bond config
     pub fn set_bond_state_active(ctx: Context<UpdateBondConfig>, _index: u8) -> Result<()> {
         ctx.accounts.update_bond_state(State::Active.to_code())
     }
 
-    pub fn set_bond_state_inactive(ctx: Context<UpdateBondConfig>) -> Result<()> {
+    pub fn set_bond_state_inactive(ctx: Context<UpdateBondConfig>, _index: u8) -> Result<()> {
         ctx.accounts.update_bond_state(State::Inactive.to_code())
     }
 
     pub fn update_mint_of_collection(
         ctx: Context<UpdateBondConfig>,
+        _index: u8,
         mint_of_collection: Pubkey,
     ) -> Result<()> {
         ctx.accounts.update_mint_of_collection(mint_of_collection)
     }
 
-    pub fn update_lock_period(ctx: Context<UpdateBondConfig>, lock_period: u64) -> Result<()> {
+    pub fn update_lock_period(
+        ctx: Context<UpdateBondConfig>,
+        _index: u8,
+        lock_period: u64,
+    ) -> Result<()> {
         ctx.accounts.update_lock_period(lock_period)
     }
 
-    pub fn update_bond_amount(ctx: Context<UpdateBondConfig>, bond_amount: u64) -> Result<()> {
+    pub fn update_bond_amount(
+        ctx: Context<UpdateBondConfig>,
+        _index: u8,
+        bond_amount: u64,
+    ) -> Result<()> {
         ctx.accounts.update_bond_amount(bond_amount)
     }
 
