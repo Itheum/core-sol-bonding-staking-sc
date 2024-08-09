@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[account]
-pub struct BondState {
+pub struct BondConfig {
     pub bump: u8,
     pub bond_state: u8,
     pub mint_of_collection: Pubkey,
@@ -9,6 +9,6 @@ pub struct BondState {
     pub bond_amount: u64,
     pub padding: [u8; 128],
 }
-impl Space for BondState {
+impl Space for BondConfig {
     const INIT_SPACE: usize = 8 + 1 + 1 + 32 + 8 + 8 + 128;
 }

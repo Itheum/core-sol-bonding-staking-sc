@@ -1,6 +1,10 @@
-pub mod bond_state;
-pub use bond_state::*;
-pub mod rewards_state;
-pub use rewards_state::*;
+pub mod bond_config;
+pub use bond_config::*;
+pub mod rewards_config;
+pub use rewards_config::*;
 pub mod vault_state;
 pub use vault_state::*;
+pub mod user_bonds;
+pub use user_bonds::*;
+pub mod bond;
+pub use bond::*;

@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 
 use crate::{
-    BondState, RewardsState, State, VaultState, ADMIN_PUBKEY, CONTRACT_STATE_SEED,
+    BondConfig, RewardsConfig, State, VaultState, ADMIN_PUBKEY, CONTRACT_STATE_SEED,
     REWARDS_STATE_SEED, VAULT_OWNER_SEED,
 };
 
@@ -16,9 +16,9 @@ pub struct InitializeContract<'info> {
         payer=authority,
         seeds=[CONTRACT_STATE_SEED.as_bytes()],
         bump,
-        space=BondState::INIT_SPACE
+        space=BondConfig::INIT_SPACE
     )]
-    pub bond_state: Account<'info, BondState>,
+    pub bond_state: Account<'info, BondConfig>,
 
     #[account(
         init,
@@ -44,9 +44,9 @@ pub struct InitializeContract<'info> {
         payer=authority,
         seeds=[REWARDS_STATE_SEED.as_bytes()],
         bump,
-        space=RewardsState::INIT_SPACE
+        space=RewardsConfig::INIT_SPACE
     )]
-    pub rewards_state: Account<'info, RewardsState>,
+    pub rewards_state: Account<'info, RewardsConfig>,
 
     #[account(
         mut,
@@ -70,7 +70,7 @@ impl<'info> InitializeContract<'info> {
         rewards_per_slot: u64,
         max_apr: u64,
     ) -> Result<()> {
-        self.bond_state.set_inner(BondState {
+        self.bond_state.set_inner(BondConfig {
             bump: bumps.bond_state,
             mint_of_collection,
             lock_period,
@@ -87,7 +87,7 @@ impl<'info> InitializeContract<'info> {
             padding: [0; 64],
         });
 
-        self.rewards_state.set_inner(RewardsState {
+        self.rewards_state.set_inner(RewardsConfig {
             bump: bumps.rewards_state,
             rewards_state: State::Inactive.to_code(),
             rewards_reserve: 0,

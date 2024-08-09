@@ -1,15 +1,15 @@
 use anchor_lang::prelude::*;
 
-use crate::{BondState, ADMIN_PUBKEY, CONTRACT_STATE_SEED};
+use crate::{BondConfig, ADMIN_PUBKEY, CONTRACT_STATE_SEED};
 
 #[derive(Accounts)]
-pub struct UpdateContract<'info> {
+pub struct UpdateBondConfig<'info> {
     #[account(
         mut,
         seeds=[CONTRACT_STATE_SEED.as_bytes()],
         bump=bond_state.bump,
     )]
-    pub bond_state: Account<'info, BondState>,
+    pub bond_state: Account<'info, BondConfig>,
 
     #[account(
         mut,
@@ -17,7 +17,7 @@ pub struct UpdateContract<'info> {
     )]
     pub authority: Signer<'info>,
 }
-impl<'info> UpdateContract<'info> {
+impl<'info> UpdateBondConfig<'info> {
     pub fn update_bond_state(&mut self, state: u8) -> Result<()> {
         self.bond_state.bond_state = state;
         Ok(())

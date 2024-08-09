@@ -1,15 +1,15 @@
 use anchor_lang::prelude::*;
 
-use crate::{RewardsState, State, ADMIN_PUBKEY, REWARDS_STATE_SEED};
+use crate::{RewardsConfig, ADMIN_PUBKEY, REWARDS_STATE_SEED};
 
 #[derive(Accounts)]
-pub struct UpdateRewards<'info> {
+pub struct UpdateRewardsConfig<'info> {
     #[account(
         mut,
         seeds=[REWARDS_STATE_SEED.as_bytes()],
         bump=rewards_state.bump,
     )]
-    pub rewards_state: Account<'info, RewardsState>,
+    pub rewards_state: Account<'info, RewardsConfig>,
 
     #[account(
         mut,
@@ -17,7 +17,7 @@ pub struct UpdateRewards<'info> {
     )]
     pub authority: Signer<'info>,
 }
-impl<'info> UpdateRewards<'info> {
+impl<'info> UpdateRewardsConfig<'info> {
     pub fn update_rewards_state(&mut self, state: u8) -> Result<()> {
         self.rewards_state.rewards_state = state;
         Ok(())
