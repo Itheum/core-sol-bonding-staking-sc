@@ -16,4 +16,14 @@ pub enum Errors {
     OwnerMismatch,
     #[msg("Mint mismatch")]
     MintMismatch,
+    #[msg("Metadata account mismatch")]
+    MetadataAccountMismatch,
+    #[msg("Mint from wrong collection")]
+    MintFromWrongCollection,
+    #[msg("Not the Mint creator")]
+    NotTheMintCreator,
+    #[msg("Wrong amount")]
+    WrongAmount,
+    #[msg("Wrong bond id")]
+    WrongBondId,
 }

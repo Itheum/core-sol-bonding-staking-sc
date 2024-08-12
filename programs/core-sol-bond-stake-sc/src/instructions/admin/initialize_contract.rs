@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 
 use crate::{
-    BondConfig, RewardsConfig, State, VaultState, ADMIN_PUBKEY, BOND_CONFIG_SEED,
+    BondConfig, RewardsConfig, State, VaultConfig, ADMIN_PUBKEY, BOND_CONFIG_SEED,
     REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
 };
 
@@ -19,22 +19,22 @@ pub struct InitializeContract<'info> {
         bump,
         space=BondConfig::INIT_SPACE
     )]
-    pub bond_state: Account<'info, BondConfig>,
+    pub bond_config: Account<'info, BondConfig>,
 
     #[account(
         init,
         payer=authority,
         seeds=[VAULT_OWNER_SEED.as_bytes()],
         bump,
-        space=VaultState::INIT_SPACE,
+        space=VaultConfig::INIT_SPACE,
     )]
-    vault_state: Account<'info, VaultState>,
+    vault_config: Account<'info, VaultConfig>,
 
     #[account(
         init_if_needed,
         payer=authority,
         associated_token::mint=mint_of_token,
-        associated_token::authority=vault_state,
+        associated_token::authority=vault_config,
     )]
     pub vault: Account<'info, TokenAccount>,
 
@@ -48,7 +48,7 @@ pub struct InitializeContract<'info> {
         bump,
         space=RewardsConfig::INIT_SPACE
     )]
-    pub rewards_state: Account<'info, RewardsConfig>,
+    pub rewards_config: Account<'info, RewardsConfig>,
 
     #[account(
         mut,
@@ -71,8 +71,8 @@ impl<'info> InitializeContract<'info> {
         rewards_per_slot: u64,
         max_apr: u64,
     ) -> Result<()> {
-        self.bond_state.set_inner(BondConfig {
-            bump: bumps.bond_state,
+        self.bond_config.set_inner(BondConfig {
+            bump: bumps.bond_config,
             index,
             mint_of_collection: self.mint_of_collection.key(),
             lock_period,
@@ -81,16 +81,16 @@ impl<'info> InitializeContract<'info> {
             padding: [0; 128],
         });
 
-        self.vault_state.set_inner(VaultState {
-            bump: bumps.vault_state,
+        self.vault_config.set_inner(VaultConfig {
+            bump: bumps.vault_config,
             vault: self.vault.key(),
             mint_of_token: self.mint_of_token.key(),
             total_bond_amount: 0,
             padding: [0; 64],
         });
 
-        self.rewards_state.set_inner(RewardsConfig {
-            bump: bumps.rewards_state,
+        self.rewards_config.set_inner(RewardsConfig {
+            bump: bumps.rewards_config,
             rewards_state: State::Inactive.to_code(),
             rewards_reserve: 0,
             accumulated_rewards: 0,
