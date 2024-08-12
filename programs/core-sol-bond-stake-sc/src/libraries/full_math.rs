@@ -3,7 +3,7 @@
 //! and supports U128 operations.
 //!
 
-use crate::libraries::big_num::{U128, U256};
+use crate::libraries::u128::U128;
 
 /// Trait for calculating `val * num / denom` with different rounding modes and overflow
 /// protection.
@@ -21,86 +21,14 @@ pub trait MulDiv<RHS = Self> {
 
     /// Calculates `floor(val * num / denom)`, i.e. the largest integer less than or equal to the
     /// result of the division.
-    ///
-    /// ## Example
-    ///
-    /// ```rust
-    /// use libraries::full_math::MulDiv;
-    ///
-    /// # fn main() {
-    /// let x = 3i8.mul_div_floor(4, 2);
-    /// assert_eq!(x, Some(6));
-    ///
-    /// let x = 5i8.mul_div_floor(2, 3);
-    /// assert_eq!(x, Some(3));
-    ///
-    /// let x = (-5i8).mul_div_floor(2, 3);
-    /// assert_eq!(x, Some(-4));
-    ///
-    /// let x = 3i8.mul_div_floor(3, 2);
-    /// assert_eq!(x, Some(4));
-    ///
-    /// let x = (-3i8).mul_div_floor(3, 2);
-    /// assert_eq!(x, Some(-5));
-    ///
-    /// let x = 127i8.mul_div_floor(4, 3);
-    /// assert_eq!(x, None);
-    /// # }
-    /// ```
     fn mul_div_floor(self, num: RHS, denom: RHS) -> Option<Self::Output>;
 
     /// Calculates `ceil(val * num / denom)`, i.e. the the smallest integer greater than or equal to
     /// the result of the division.
-    ///
-    /// ## Example
-    ///
-    /// ```rust
-    /// use libraries::full_math::MulDiv;
-    ///
-    /// # fn main() {
-    /// let x = 3i8.mul_div_ceil(4, 2);
-    /// assert_eq!(x, Some(6));
-    ///
-    /// let x = 5i8.mul_div_ceil(2, 3);
-    /// assert_eq!(x, Some(4));
-    ///
-    /// let x = (-5i8).mul_div_ceil(2, 3);
-    /// assert_eq!(x, Some(-3));
-    ///
-    /// let x = 3i8.mul_div_ceil(3, 2);
-    /// assert_eq!(x, Some(5));
-    ///
-    /// let x = (-3i8).mul_div_ceil(3, 2);
-    /// assert_eq!(x, Some(-4));
-    ///
-    /// let x = (127i8).mul_div_ceil(4, 3);
-    /// assert_eq!(x, None);
-    /// # }
-    /// ```
     fn mul_div_ceil(self, num: RHS, denom: RHS) -> Option<Self::Output>;
 
     /// Return u64 not out of bounds
     fn to_underflow_u64(self) -> u64;
-}
-
-pub trait Upcast {
-    fn as_u256(self) -> U256;
-}
-impl Upcast for U128 {
-    fn as_u256(self) -> U256 {
-        U256([self.0[0], self.0[1], 0, 0])
-    }
-}
-
-pub trait Downcast {
-    /// Unsafe cast to U128
-    /// Bits beyond the 128th position are lost
-    fn as_u128(self) -> U128;
-}
-impl Downcast for U256 {
-    fn as_u128(self) -> U128 {
-        U128([self.0[0], self.0[1]])
-    }
 }
 
 impl MulDiv for u64 {
@@ -128,70 +56,6 @@ impl MulDiv for u64 {
 
     fn to_underflow_u64(self) -> u64 {
         self
-    }
-}
-
-impl MulDiv for U128 {
-    type Output = U128;
-
-    fn mul_div_floor(self, num: Self, denom: Self) -> Option<Self::Output> {
-        assert_ne!(denom, U128::default());
-        let r = ((self.as_u256()) * (num.as_u256())) / (denom.as_u256());
-        if r > U128::MAX.as_u256() {
-            None
-        } else {
-            Some(r.as_u128())
-        }
-    }
-
-    fn mul_div_ceil(self, num: Self, denom: Self) -> Option<Self::Output> {
-        assert_ne!(denom, U128::default());
-        let r = (self.as_u256() * num.as_u256() + (denom - 1).as_u256()) / denom.as_u256();
-        if r > U128::MAX.as_u256() {
-            None
-        } else {
-            Some(r.as_u128())
-        }
-    }
-
-    fn to_underflow_u64(self) -> u64 {
-        if self < U128::from(u64::MAX) {
-            self.as_u64()
-        } else {
-            0
-        }
-    }
-}
-
-impl MulDiv for U256 {
-    type Output = U256;
-
-    fn mul_div_floor(self, num: Self, denom: Self) -> Option<Self::Output> {
-        assert_ne!(denom, U256::default());
-        let r = (self * num) / denom;
-        if r > U128::MAX.as_u256() {
-            None
-        } else {
-            Some(r)
-        }
-    }
-
-    fn mul_div_ceil(self, num: Self, denom: Self) -> Option<Self::Output> {
-        assert_ne!(denom, U256::default());
-        let r = (self * num + (denom - 1)) / denom;
-        if r > U128::MAX.as_u256() {
-            None
-        } else {
-            Some(r)
-        }
-    }
-
-    fn to_underflow_u64(self) -> u64 {
-        if self < U256::from(u64::MAX) {
-            self.as_u64()
-        } else {
-            0
-        }
     }
 }
 
@@ -253,7 +117,7 @@ mod muldiv_u64_tests {
 mod muldiv_u128_tests {
     use super::*;
 
-    use quickcheck::{quickcheck, Arbitrary, Gen};
+    use quickcheck::{Arbitrary, Gen};
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     struct NonZero(U128);
@@ -276,39 +140,6 @@ mod muldiv_u128_tests {
                 if v != U128::default() {
                     return v;
                 }
-            }
-        }
-    }
-
-    quickcheck! {
-        fn scale_floor(val: U128, num: U128, den: NonZero) -> bool {
-            let res = val.mul_div_floor(num, den.0);
-
-            let expected = ((val.as_u256()) * (num.as_u256())) / (den.0.as_u256());
-
-            if expected > U128::MAX.as_u256() {
-                res.is_none()
-            } else {
-                res == Some(expected.as_u128())
-            }
-        }
-    }
-
-    quickcheck! {
-        fn scale_ceil(val: U128, num: U128, den: NonZero) -> bool {
-            let res = val.mul_div_ceil(num, den.0);
-
-            let mut expected = ((val.as_u256()) * (num.as_u256())) / (den.0.as_u256());
-            let expected_rem = ((val.as_u256()) * (num.as_u256())) % (den.0.as_u256());
-
-            if expected_rem != U256::default() {
-                expected += U256::from(1)
-            }
-
-            if expected > U128::MAX.as_u256() {
-                res.is_none()
-            } else {
-                res == Some(expected.as_u128())
             }
         }
     }
