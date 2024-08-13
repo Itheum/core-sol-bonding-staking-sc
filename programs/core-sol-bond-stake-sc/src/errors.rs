@@ -26,4 +26,8 @@ pub enum Errors {
     WrongAmount,
     #[msg("Wrong bond id")]
     WrongBondId,
+    #[msg("Invalid remaining accounts")]
+    InvalidRemainingAccounts,
+    #[msg("Wrong owner")]
+    WrongOwner,
 }

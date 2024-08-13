@@ -1,11 +1,13 @@
 use crate::{
-    get_current_slot, RewardsConfig, State, DIVISION_SAFETY_CONST, MAX_PERCENT, SLOTS_IN_YEAR,
+    address_rewards, compute_bond_score, get_current_slot, get_current_timestamp, vault_config,
+    AddressBonds, AddressRewards, Bond, Errors, RewardsConfig, State, DIVISION_SAFETY_CONST,
+    MAX_PERCENT, SLOTS_IN_YEAR,
 };
 use anchor_lang::prelude::*;
 
 use super::full_math::MulDiv;
 
-fn generate_aggregated_rewards<'info>(
+pub fn generate_aggregated_rewards<'info>(
     total_bond_amount: u64,
     rewards_config: &mut Account<'info, RewardsConfig>,
 ) -> Result<()> {
@@ -42,16 +44,16 @@ fn generate_aggregated_rewards<'info>(
     Ok(())
 }
 
-fn get_amount_apr_bounded(max_apr: u64, amount: u64) -> u64 {
+pub fn get_amount_apr_bounded(max_apr: u64, amount: u64) -> u64 {
     amount * max_apr / MAX_PERCENT / SLOTS_IN_YEAR
 }
 
-fn calculate_rewards_since_last_allocation<'info>(
+pub fn calculate_rewards_since_last_allocation<'info>(
     rewards_config: &mut Account<'info, RewardsConfig>,
 ) -> Result<u64> {
     let current_slot = get_current_slot()?;
 
-    if !rewards_config.rewards_state == State::Active.to_code() {
+    if rewards_config.rewards_state == State::Inactive.to_code() {
         return Ok(0u64);
     }
 
@@ -66,33 +68,85 @@ fn calculate_rewards_since_last_allocation<'info>(
     Ok(rewards_config.rewards_per_slot * slot_diff)
 }
 
-fn calculate_address_share_in_rewards<'info>(
-    rewards_config: &mut Account<'info, RewardsConfig>,
+pub fn calculate_address_share_in_rewards<'info>(
+    accumulated_rewards: u64,
+    rewards_per_share: u64,
     address_bond_amount: u64,
-    address_last_reward_slot: u64,
+    address_rewards_per_share: u64,
     total_bond_amount: u64,
-    bond_score: u64,
+    liveliness_score: u64,
+    bypass_liveliness_score: bool,
 ) -> u64 {
     if total_bond_amount == 0 {
         return 0;
     }
 
-    if rewards_config.accumulated_rewards == 0 {
+    if accumulated_rewards == 0 {
         return 0;
     }
 
     let address_rewards = address_bond_amount
         .mul_div_floor(
-            rewards_config.rewards_per_share - address_last_reward_slot,
+            rewards_per_share - address_rewards_per_share,
             DIVISION_SAFETY_CONST,
         )
         .unwrap();
 
-    if bond_score >= 95_00u64 {
+    if liveliness_score >= 95_00u64 || bypass_liveliness_score {
         address_rewards
     } else {
         address_rewards
-            .mul_div_floor(bond_score, MAX_PERCENT)
+            .mul_div_floor(liveliness_score, MAX_PERCENT)
             .unwrap()
     }
+}
+
+pub fn update_address_claimable_rewards<'info>(
+    rewards_config: &mut Account<'info, RewardsConfig>,
+    address_rewards: &mut Account<'info, AddressRewards>,
+    address_bonds: &mut Account<'info, AddressBonds>,
+    remaining_accounts: &'info [AccountInfo<'info>],
+    total_bond_amount: u64,
+    bypass_liveliness_score: bool,
+) -> Result<()> {
+    generate_aggregated_rewards(total_bond_amount, rewards_config)?;
+
+    let current_timestamp = get_current_timestamp()?;
+
+    let mut liveliness_score = 0u64;
+
+    if !bypass_liveliness_score {
+        // fetch remaining accounts and compute liveliness
+        require!(
+            remaining_accounts.len() == address_bonds.current_index as usize,
+            Errors::InvalidRemainingAccounts
+        );
+
+        let mut total_bond_score = 0u64;
+
+        for account in remaining_accounts.iter() {
+            let bond: Account<Bond> = Account::try_from(account)?;
+            require!(bond.owner == address_bonds.address, Errors::WrongOwner);
+            total_bond_score +=
+                compute_bond_score(bond.lock_period, current_timestamp, bond.unbond_timestamp);
+        }
+
+        liveliness_score = total_bond_score / address_bonds.current_index as u64;
+    }
+
+    let address_claimable_rewards = calculate_address_share_in_rewards(
+        rewards_config.accumulated_rewards,
+        rewards_config.rewards_per_share,
+        address_bonds.address_total_bond_amount,
+        address_rewards.address_rewards_per_share,
+        total_bond_amount,
+        liveliness_score,
+        bypass_liveliness_score,
+    );
+
+    address_rewards.address_rewards_per_share = rewards_config.rewards_per_share;
+    address_rewards.claimable_amount += address_claimable_rewards;
+    rewards_config.accumulated_rewards -= address_claimable_rewards;
+
+    Ok(())
 }

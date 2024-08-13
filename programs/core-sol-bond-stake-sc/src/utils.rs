@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use solana_program::clock;
 
-fn compute_bond_score(lock_period: u64, current_timestamp: u64, unbond_timestamp: u64) -> u64 {
+pub fn compute_bond_score(lock_period: u64, current_timestamp: u64, unbond_timestamp: u64) -> u64 {
     if current_timestamp >= unbond_timestamp {
         0
     } else {
