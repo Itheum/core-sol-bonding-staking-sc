@@ -1,13 +1,12 @@
 use crate::{
-    address_rewards, compute_bond_score, get_current_slot, get_current_timestamp, vault_config,
-    AddressBonds, AddressRewards, Bond, Errors, RewardsConfig, State, DIVISION_SAFETY_CONST,
-    MAX_PERCENT, SLOTS_IN_YEAR,
+    compute_bond_score, get_current_slot, get_current_timestamp, AddressBonds, AddressRewards,
+    Bond, Errors, RewardsConfig, State, DIVISION_SAFETY_CONST, MAX_PERCENT, SLOTS_IN_YEAR,
 };
 use anchor_lang::prelude::*;
 
 use super::full_math::MulDiv;
 
-pub fn generate_aggregated_rewards<'info>(
+pub fn generate_aggregated_rewards<'a, 'b, 'c: 'info, 'info>(
     total_bond_amount: u64,
     rewards_config: &mut Account<'info, RewardsConfig>,
 ) -> Result<()> {
@@ -68,7 +67,7 @@ pub fn calculate_rewards_since_last_allocation<'info>(
     Ok(rewards_config.rewards_per_slot * slot_diff)
 }
 
-pub fn calculate_address_share_in_rewards<'info>(
+pub fn calculate_address_share_in_rewards(
     accumulated_rewards: u64,
     rewards_per_share: u64,
     address_bond_amount: u64,
@@ -125,7 +124,7 @@ pub fn update_address_claimable_rewards<'info>(
         let mut total_bond_score = 0u64;
 
         for account in remaining_accounts.iter() {
-            let bond: Account<Bond> = Account::try_from(account)?;
+            let bond: Account<'info, Bond> = Account::try_from(account)?;
             require!(bond.owner == address_bonds.address, Errors::WrongOwner);
             total_bond_score +=
                 compute_bond_score(bond.lock_period, current_timestamp, bond.unbond_timestamp);

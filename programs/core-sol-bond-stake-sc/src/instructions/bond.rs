@@ -99,101 +99,104 @@ pub struct BondContext<'info> {
     token_program: Program<'info, Token>,
     associated_token_program: Program<'info, AssociatedToken>,
 }
-impl<'info> BondContext<'info> {
-    pub fn bond(
-        &mut self,
-        bumps: &BondContextBumps,
-        remaining_accounts: &'info [AccountInfo<'info>],
-        bond_id: u8,
-        amount: u64,
-        is_vault: bool,
-    ) -> Result<()> {
-        require!(self.bond_config.bond_amount == amount, Errors::WrongAmount);
 
-        update_address_claimable_rewards(
-            &mut self.rewards_config,
-            &mut self.address_rewards,
-            &mut self.address_bonds,
-            remaining_accounts,
-            self.vault_config.total_bond_amount,
-            true,
-        )?;
+pub fn bond<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, BondContext<'info>>,
+    bond_id: u8,
+    amount: u64,
+    is_vault: bool,
+) -> Result<()> {
+    require!(
+        ctx.accounts.bond_config.bond_amount == amount,
+        Errors::WrongAmount
+    );
 
-        // if bond_id == 1 {
-        //     self.address_rewards.set_inner(AddressRewards {
-        //         bump: bumps.address_rewards,
-        //         address: self.authority.key(),
-        //         address_rewards_per_share: 0, // after generate aggregated rewards set this to actual rewards per share
-        //         claimable_amount: 0,
-        //         padding: [0; 32],
-        //     });
-        // } else {
-        //     // claim rewards
-        // }
+    update_address_claimable_rewards(
+        &mut ctx.accounts.rewards_config,
+        &mut ctx.accounts.address_rewards,
+        &mut ctx.accounts.address_bonds,
+        ctx.remaining_accounts,
+        ctx.accounts.vault_config.total_bond_amount,
+        true,
+    )?;
 
-        // Check if this is updated even if account exists
-        self.address_bonds.set_inner(AddressBonds {
-            bump: bumps.address_bonds,
-            address: self.authority.key(),
-            address_total_bond_amount: self.address_bonds.address_total_bond_amount + amount,
-            current_index: bond_id,
-            padding: [0; 32],
-        });
+    // if bond_id == 1 {
+    //     self.address_rewards.set_inner(AddressRewards {
+    //         bump: bumps.address_rewards,
+    //         address: self.authority.key(),
+    //         address_rewards_per_share: 0, // after generate aggregated rewards set this to actual rewards per share
+    //         claimable_amount: 0,
+    //         padding: [0; 32],
+    //     });
+    // } else {
+    //     // claim rewards
+    // }
 
-        // Not really required
-        let (metadata, _) = Pubkey::find_program_address(
-            &[
-                "metadata".as_bytes(),
-                mpl_token_metadata::ID.as_ref(),
-                self.mint_of_nft.key().as_ref(),
-            ],
-            &mpl_token_metadata::ID,
-        );
-        // Not really required
-        require!(
-            metadata == self.metadata.key(),
-            Errors::MetadataAccountMismatch
-        );
+    // Check if this is updated even if account exists
+    ctx.accounts.address_bonds.set_inner(AddressBonds {
+        bump: ctx.bumps.address_bonds,
+        address: ctx.accounts.authority.key(),
+        address_total_bond_amount: ctx.accounts.address_bonds.address_total_bond_amount + amount,
+        current_index: bond_id,
+        padding: [0; 32],
+    });
 
-        let mint_metadata = Metadata::safe_deserialize(&self.metadata.try_borrow_data()?)?;
+    // Not really required
+    let (metadata, _) = Pubkey::find_program_address(
+        &[
+            "metadata".as_bytes(),
+            mpl_token_metadata::ID.as_ref(),
+            ctx.accounts.mint_of_nft.key().as_ref(),
+        ],
+        &mpl_token_metadata::ID,
+    );
+    // Not really required
+    require!(
+        metadata == ctx.accounts.metadata.key(),
+        Errors::MetadataAccountMismatch
+    );
 
-        // Check if the creator is the same as the authority
-        let collection_key = mint_metadata
-            .collection
-            .ok_or(Errors::MintFromWrongCollection)?
-            .key;
+    let mint_metadata = Metadata::safe_deserialize(&ctx.accounts.metadata.try_borrow_data()?)?;
 
-        require!(
-            self.bond_config.mint_of_collection == collection_key,
-            Errors::MintFromWrongCollection
-        );
+    // Check if the creator is the same as the authority
+    let collection_key = mint_metadata
+        .collection
+        .ok_or(Errors::MintFromWrongCollection)?
+        .key;
 
-        let is_creator = mint_metadata.creators.map_or(false, |creators| {
-            creators.iter().any(|c| c.address == self.authority.key())
-        });
+    require!(
+        ctx.accounts.bond_config.mint_of_collection == collection_key,
+        Errors::MintFromWrongCollection
+    );
 
-        require!(is_creator, Errors::NotTheMintCreator);
+    let is_creator = mint_metadata.creators.map_or(false, |creators| {
+        creators
+            .iter()
+            .any(|c| c.address == ctx.accounts.authority.key())
+    });
 
-        let current_timestamp = get_current_timestamp()?;
+    require!(is_creator, Errors::NotTheMintCreator);
 
-        self.vault_config
-            .total_bond_amount
-            .checked_add(amount)
-            .unwrap();
+    let current_timestamp = get_current_timestamp()?;
 
-        self.bond.set_inner(Bond {
-            bump: bumps.bond,
-            state: State::Active.to_code(),
-            is_vault,
-            unbond_timestamp: current_timestamp.add(self.bond_config.lock_period),
-            bond_timestamp: current_timestamp,
-            bond_amount: amount,
-            lock_period: self.bond_config.lock_period,
-            mint_of_nft: self.mint_of_nft.key(),
-            owner: self.authority.key(),
-            padding: [0; 64],
-        });
+    ctx.accounts
+        .vault_config
+        .total_bond_amount
+        .checked_add(amount)
+        .unwrap();
 
-        Ok(())
-    }
+    ctx.accounts.bond.set_inner(Bond {
+        bump: ctx.bumps.bond,
+        state: State::Active.to_code(),
+        is_vault,
+        unbond_timestamp: current_timestamp.add(ctx.accounts.bond_config.lock_period),
+        bond_timestamp: current_timestamp,
+        bond_amount: amount,
+        lock_period: ctx.accounts.bond_config.lock_period,
+        mint_of_nft: ctx.accounts.mint_of_nft.key(),
+        owner: ctx.accounts.authority.key(),
+        padding: [0; 64],
+    });
+
+    Ok(())
 }

@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 
-use core as core_;
 mod instructions;
 use instructions::*;
 mod states;
@@ -102,5 +101,17 @@ pub mod core_sol_bond_stake_sc {
 
     pub fn update_max_apr(ctx: Context<UpdateRewardsConfig>, max_apr: u64) -> Result<()> {
         ctx.accounts.update_max_apr(max_apr)
+    }
+
+    // Bonding
+
+    pub fn bond<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'info, 'info, BondContext<'info>>,
+        _bond_config_index: u8,
+        bond_id: u8,
+        amount: u64,
+        is_vault: bool,
+    ) -> Result<()> {
+        instructions::bond(ctx, bond_id, amount, is_vault)
     }
 }
