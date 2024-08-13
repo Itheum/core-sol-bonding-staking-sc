@@ -8,9 +8,9 @@ use anchor_spl::{
 use mpl_token_metadata::accounts::Metadata;
 
 use crate::{
-    get_current_timestamp, AddressBonds, AddressRewards, Bond, BondConfig, Errors, RewardsConfig,
-    State, VaultConfig, ADDRESS_BONDS_SEED, ADDRESS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED,
-    REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
+    get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards, Bond,
+    BondConfig, Errors, RewardsConfig, State, VaultConfig, ADDRESS_BONDS_SEED,
+    ADDRESS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED, REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
 };
 
 #[derive(Accounts)]
@@ -103,25 +103,33 @@ impl<'info> BondContext<'info> {
     pub fn bond(
         &mut self,
         bumps: &BondContextBumps,
+        remaining_accounts: &'info [AccountInfo<'info>],
         bond_id: u8,
         amount: u64,
         is_vault: bool,
     ) -> Result<()> {
         require!(self.bond_config.bond_amount == amount, Errors::WrongAmount);
 
-        // generate aggregated rewards
-        // if bond id = 1 set address_rewards_per_share else claim rewards
+        update_address_claimable_rewards(
+            &mut self.rewards_config,
+            &mut self.address_rewards,
+            &mut self.address_bonds,
+            remaining_accounts,
+            self.vault_config.total_bond_amount,
+            true,
+        )?;
 
-        if bond_id == 1 {
-            self.address_rewards.set_inner(AddressRewards {
-                bump: bumps.address_rewards,
-                address: self.authority.key(),
-                address_rewards_per_share: 0, // after generate aggregated rewards set this to actual rewards per share
-                padding: [0; 32],
-            });
-        } else {
-            // claim rewards
-        }
+        // if bond_id == 1 {
+        //     self.address_rewards.set_inner(AddressRewards {
+        //         bump: bumps.address_rewards,
+        //         address: self.authority.key(),
+        //         address_rewards_per_share: 0, // after generate aggregated rewards set this to actual rewards per share
+        //         claimable_amount: 0,
+        //         padding: [0; 32],
+        //     });
+        // } else {
+        //     // claim rewards
+        // }
 
         // Check if this is updated even if account exists
         self.address_bonds.set_inner(AddressBonds {
@@ -182,6 +190,7 @@ impl<'info> BondContext<'info> {
             bond_amount: amount,
             lock_period: self.bond_config.lock_period,
             mint_of_nft: self.mint_of_nft.key(),
+            owner: self.authority.key(),
             padding: [0; 64],
         });
 
