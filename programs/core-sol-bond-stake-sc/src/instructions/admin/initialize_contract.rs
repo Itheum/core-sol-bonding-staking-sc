@@ -87,6 +87,7 @@ pub fn initialize_contract(
     vault_config.vault = ctx.accounts.vault.key();
     vault_config.mint_of_token = ctx.accounts.mint_of_token.key();
     vault_config.total_bond_amount = 0;
+    vault_config.total_penalized_amount = 0;
     vault_config.padding = [0; 64];
 
     let rewards_config = ctx.accounts.rewards_config.deref_mut();

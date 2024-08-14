@@ -126,4 +126,12 @@ pub mod core_sol_bond_stake_sc {
     pub fn renew(ctx: Context<Renew>, _bond_id: u8) -> Result<()> {
         instructions::renew(ctx)
     }
+
+    pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'info, 'info, Withdraw<'info>>,
+        _bond_config_index: u8,
+        _bond_id: u8,
+    ) -> Result<()> {
+        instructions::withdraw(ctx)
+    }
 }

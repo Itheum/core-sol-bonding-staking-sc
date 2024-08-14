@@ -32,4 +32,6 @@ pub enum Errors {
     WrongOwner,
     #[msg("Wrong value")]
     WrongValue,
+    #[msg("Bond is inactive")]
+    BondIsInactive,
 }
