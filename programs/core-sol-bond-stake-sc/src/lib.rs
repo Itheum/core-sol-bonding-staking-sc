@@ -113,4 +113,8 @@ pub mod core_sol_bond_stake_sc {
     ) -> Result<()> {
         instructions::bond(ctx, bond_id, amount, is_vault)
     }
+
+    pub fn renew(ctx: Context<Renew>, _bond_id: u8) -> Result<()> {
+        instructions::renew(ctx)
+    }
 }
