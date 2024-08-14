@@ -122,15 +122,21 @@ pub fn update_address_claimable_rewards<'info>(
         );
 
         let mut total_bond_score = 0u64;
+        let mut bond_amounts = 0u64;
 
         for account in remaining_accounts.iter() {
             let bond: Account<'info, Bond> = Account::try_from(account)?;
             require!(bond.owner == address_bonds.address, Errors::WrongOwner);
+            if bond.state == State::Inactive.to_code() {
+                continue;
+            }
+            bond_amounts += bond.bond_amount;
             total_bond_score +=
-                compute_bond_score(bond.lock_period, current_timestamp, bond.unbond_timestamp);
+                compute_bond_score(bond.lock_period, current_timestamp, bond.unbond_timestamp)
+                    * bond.bond_amount;
         }
 
-        liveliness_score = total_bond_score / address_bonds.current_index as u64;
+        liveliness_score = total_bond_score / bond_amounts;
     }
 
     let address_claimable_rewards = calculate_address_share_in_rewards(

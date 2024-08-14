@@ -7,9 +7,9 @@ pub struct UpdateRewardsConfig<'info> {
     #[account(
         mut,
         seeds=[REWARDS_CONFIG_SEED.as_bytes()],
-        bump=rewards_state.bump,
+        bump=rewards_config.bump,
     )]
-    pub rewards_state: Account<'info, RewardsConfig>,
+    pub rewards_config: Account<'info, RewardsConfig>,
 
     #[account(
         mut,
@@ -19,7 +19,8 @@ pub struct UpdateRewardsConfig<'info> {
 }
 
 pub fn update_rewards_state(ctx: Context<UpdateRewardsConfig>, state: u8) -> Result<()> {
-    ctx.accounts.rewards_state.rewards_state = state;
+    let rewards_config = &mut ctx.accounts.rewards_config;
+    rewards_config.rewards_state = state;
     Ok(())
 }
 
@@ -27,11 +28,13 @@ pub fn update_rewards_per_slot(
     ctx: Context<UpdateRewardsConfig>,
     rewards_per_slot: u64,
 ) -> Result<()> {
-    ctx.accounts.rewards_state.rewards_per_slot = rewards_per_slot;
+    let rewards_config = &mut ctx.accounts.rewards_config;
+    rewards_config.rewards_per_slot = rewards_per_slot;
     Ok(())
 }
 
 pub fn update_max_apr(ctx: Context<UpdateRewardsConfig>, max_apr: u64) -> Result<()> {
-    ctx.accounts.rewards_state.max_apr = max_apr;
+    let rewards_config = &mut ctx.accounts.rewards_config;
+    rewards_config.max_apr = max_apr;
     Ok(())
 }

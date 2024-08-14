@@ -20,7 +20,8 @@ pub struct UpdateBondConfig<'info> {
 }
 
 pub fn update_bond_state(ctx: Context<UpdateBondConfig>, state: u8) -> Result<()> {
-    ctx.accounts.bond_config.bond_state = state;
+    let bond_config = &mut ctx.accounts.bond_config;
+    bond_config.bond_state = state;
     Ok(())
 }
 
@@ -28,16 +29,19 @@ pub fn update_mint_of_collection(
     ctx: Context<UpdateBondConfig>,
     mint_of_collection: Pubkey,
 ) -> Result<()> {
-    ctx.accounts.bond_config.mint_of_collection = mint_of_collection;
+    let bond_config = &mut ctx.accounts.bond_config;
+    bond_config.mint_of_collection = mint_of_collection;
     Ok(())
 }
 
 pub fn update_lock_period(ctx: Context<UpdateBondConfig>, lock_period: u64) -> Result<()> {
-    ctx.accounts.bond_config.lock_period = lock_period;
+    let bond_config = &mut ctx.accounts.bond_config;
+    bond_config.lock_period = lock_period;
     Ok(())
 }
 
 pub fn update_bond_amount(ctx: Context<UpdateBondConfig>, bond_amount: u64) -> Result<()> {
-    ctx.accounts.bond_config.bond_amount = bond_amount;
+    let bond_config = &mut ctx.accounts.bond_config;
+    bond_config.bond_amount = bond_amount;
     Ok(())
 }
