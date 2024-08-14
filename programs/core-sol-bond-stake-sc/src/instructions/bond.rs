@@ -3,7 +3,7 @@ use std::ops::Add;
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Mint, Token, TokenAccount},
+    token::{self, Mint, Token, TokenAccount, TransferChecked},
 };
 use mpl_token_metadata::accounts::Metadata;
 
@@ -184,6 +184,23 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
         .total_bond_amount
         .checked_add(amount)
         .unwrap();
+
+    // bond transfer to vault
+
+    let cpi_accounts = TransferChecked {
+        from: ctx.accounts.authority_token_account.to_account_info(),
+        to: ctx.accounts.vault.to_account_info(),
+        mint: ctx.accounts.mint_of_token_sent.to_account_info(),
+        authority: ctx.accounts.authority.to_account_info(),
+    };
+
+    let cpi_context = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+
+    token::transfer_checked(
+        cpi_context,
+        amount,
+        ctx.accounts.mint_of_token_sent.decimals,
+    )?;
 
     ctx.accounts.bond.set_inner(Bond {
         bump: ctx.bumps.bond,
