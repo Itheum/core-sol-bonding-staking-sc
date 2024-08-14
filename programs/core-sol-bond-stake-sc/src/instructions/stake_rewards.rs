@@ -55,7 +55,7 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
         &mut ctx.accounts.address_bonds,
         ctx.remaining_accounts,
         ctx.accounts.vault_config.total_bond_amount,
-        false,
+        true,
     )?;
     Ok(())
 }

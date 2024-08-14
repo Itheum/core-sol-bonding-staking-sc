@@ -109,7 +109,7 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
         &mut ctx.accounts.address_bonds,
         ctx.remaining_accounts,
         ctx.accounts.vault_config.total_bond_amount,
-        false,
+        true,
     )?;
 
     let bond_config = &ctx.accounts.bond_config;
