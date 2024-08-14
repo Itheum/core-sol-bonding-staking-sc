@@ -124,8 +124,9 @@ pub fn update_address_claimable_rewards<'info>(
         let mut total_bond_score = 0u64;
         let mut bond_amounts = 0u64;
 
+        // load remaining accounts on the heap
         for account in remaining_accounts.iter() {
-            let bond: Account<'info, Bond> = Account::try_from(account)?;
+            let bond = Box::new(Account::<Bond>::try_from(account)?);
             require!(bond.owner == address_bonds.address, Errors::WrongOwner);
             if bond.state == State::Inactive.to_code() {
                 continue;
