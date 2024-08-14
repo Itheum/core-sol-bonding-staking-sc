@@ -78,6 +78,8 @@ pub struct Withdraw<'info> {
     #[account(
         mut,
         constraint=bond.owner == authority.key() @ Errors::WrongOwner,
+        constraint=address_bonds.address == authority.key() @ Errors::WrongOwner,
+        constraint=address_rewards.address==authority.key() @Errors::WrongOwner,
     )]
     pub authority: Signer<'info>,
 
