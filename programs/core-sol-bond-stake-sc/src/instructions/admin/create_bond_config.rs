@@ -33,6 +33,7 @@ pub fn create_bond_config(
     index: u8,
     lock_period: u64,
     bond_amount: u64,
+    withdraw_penalty: u64,
 ) -> Result<()> {
     let bond_config = ctx.accounts.bond_config.deref_mut();
 
@@ -42,6 +43,7 @@ pub fn create_bond_config(
     bond_config.mint_of_collection = ctx.accounts.mint_of_collection.key();
     bond_config.lock_period = lock_period;
     bond_config.bond_amount = bond_amount;
+    bond_config.withdraw_penalty = withdraw_penalty;
     bond_config.padding = [0; 128];
 
     Ok(())

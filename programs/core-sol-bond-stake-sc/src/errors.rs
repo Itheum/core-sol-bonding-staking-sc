@@ -30,4 +30,6 @@ pub enum Errors {
     InvalidRemainingAccounts,
     #[msg("Wrong owner")]
     WrongOwner,
+    #[msg("Wrong value")]
+    WrongValue,
 }

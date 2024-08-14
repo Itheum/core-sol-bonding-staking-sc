@@ -44,8 +44,9 @@ pub mod core_sol_bond_stake_sc {
         index: u8,
         lock_period: u64,
         bond_amount: u64,
+        withdraw_penalty: u64,
     ) -> Result<()> {
-        instructions::create_bond_config(ctx, index, lock_period, bond_amount)
+        instructions::create_bond_config(ctx, index, lock_period, bond_amount, withdraw_penalty)
     }
 
     // Update bond config
@@ -79,6 +80,14 @@ pub mod core_sol_bond_stake_sc {
         bond_amount: u64,
     ) -> Result<()> {
         instructions::update_bond_amount(ctx, bond_amount)
+    }
+
+    pub fn update_withdraw_penalty(
+        ctx: Context<UpdateBondConfig>,
+        _index: u8,
+        withdraw_penalty: u64,
+    ) -> Result<()> {
+        instructions::update_withdraw_penalty(ctx, withdraw_penalty)
     }
 
     //Rewards config

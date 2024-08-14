@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{BondConfig, ADMIN_PUBKEY, BOND_CONFIG_SEED};
+use crate::{BondConfig, Errors, ADMIN_PUBKEY, BOND_CONFIG_SEED, MAX_PERCENT};
 
 #[derive(Accounts)]
 #[instruction(index:u8)]
@@ -43,5 +43,15 @@ pub fn update_lock_period(ctx: Context<UpdateBondConfig>, lock_period: u64) -> R
 pub fn update_bond_amount(ctx: Context<UpdateBondConfig>, bond_amount: u64) -> Result<()> {
     let bond_config = &mut ctx.accounts.bond_config;
     bond_config.bond_amount = bond_amount;
+    Ok(())
+}
+
+pub fn update_withdraw_penalty(
+    ctx: Context<UpdateBondConfig>,
+    withdraw_penalty: u64,
+) -> Result<()> {
+    require!(withdraw_penalty <= MAX_PERCENT, Errors::WrongValue,);
+    let bond_config = &mut ctx.accounts.bond_config;
+    bond_config.withdraw_penalty = withdraw_penalty;
     Ok(())
 }
