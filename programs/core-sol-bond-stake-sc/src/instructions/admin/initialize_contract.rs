@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -61,47 +63,43 @@ pub struct InitializeContract<'info> {
     associated_token_program: Program<'info, AssociatedToken>,
 }
 
-impl<'info> InitializeContract<'info> {
-    pub fn initialize_contract(
-        &mut self,
-        bumps: &InitializeContractBumps,
-        index: u8,
-        lock_period: u64,
-        bond_amount: u64,
-        rewards_per_slot: u64,
-        max_apr: u64,
-    ) -> Result<()> {
-        self.bond_config.set_inner(BondConfig {
-            bump: bumps.bond_config,
-            index,
-            mint_of_collection: self.mint_of_collection.key(),
-            lock_period,
-            bond_amount,
-            bond_state: State::Inactive.to_code(),
-            padding: [0; 128],
-        });
+pub fn initialize_contract(
+    ctx: Context<InitializeContract>,
+    index: u8,
+    lock_period: u64,
+    bond_amount: u64,
+    rewards_per_slot: u64,
+    max_apr: u64,
+) -> Result<()> {
+    let bond_config = ctx.accounts.bond_config.deref_mut();
 
-        self.vault_config.set_inner(VaultConfig {
-            bump: bumps.vault_config,
-            vault: self.vault.key(),
-            mint_of_token: self.mint_of_token.key(),
-            total_bond_amount: 0,
-            padding: [0; 64],
-        });
+    bond_config.bump = ctx.bumps.bond_config;
+    bond_config.index = index;
+    bond_config.bond_state = State::Inactive.to_code();
+    bond_config.mint_of_collection = ctx.accounts.mint_of_collection.key();
+    bond_config.lock_period = lock_period;
+    bond_config.bond_amount = bond_amount;
+    bond_config.padding = [0; 128];
 
-        self.rewards_config.set_inner(RewardsConfig {
-            bump: bumps.rewards_config,
-            rewards_state: State::Inactive.to_code(),
-            rewards_reserve: 0,
-            accumulated_rewards: 0,
-            rewards_per_slot,
-            rewards_per_share: 0,
+    let vault_config = ctx.accounts.vault_config.deref_mut();
 
-            last_reward_slot: 0,
-            max_apr,
-            padding: [0; 128],
-        });
+    vault_config.bump = ctx.bumps.vault_config;
+    vault_config.vault = ctx.accounts.vault.key();
+    vault_config.mint_of_token = ctx.accounts.mint_of_token.key();
+    vault_config.total_bond_amount = 0;
+    vault_config.padding = [0; 64];
 
-        Ok(())
-    }
+    let rewards_config = ctx.accounts.rewards_config.deref_mut();
+
+    rewards_config.bump = ctx.bumps.rewards_config;
+    rewards_config.rewards_state = State::Inactive.to_code();
+    rewards_config.rewards_reserve = 0;
+    rewards_config.accumulated_rewards = 0;
+    rewards_config.rewards_per_slot = rewards_per_slot;
+    rewards_config.rewards_per_share = 0;
+    rewards_config.last_reward_slot = 0;
+    rewards_config.max_apr = max_apr;
+    rewards_config.padding = [0; 128];
+
+    Ok(())
 }

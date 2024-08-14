@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
 
@@ -26,24 +28,21 @@ pub struct CreateBondConfig<'info> {
     system_program: Program<'info, System>,
 }
 
-impl<'info> CreateBondConfig<'info> {
-    pub fn create_bond_config(
-        &mut self,
-        index: u8,
-        bumps: &CreateBondConfigBumps,
-        lock_period: u64,
-        bond_amount: u64,
-    ) -> Result<()> {
-        self.bond_config.set_inner(BondConfig {
-            bump: bumps.bond_config,
-            index,
-            bond_state: State::Inactive.to_code(),
-            mint_of_collection: self.mint_of_collection.key(),
-            lock_period,
-            bond_amount,
-            padding: [0; 128],
-        });
+pub fn create_bond_config(
+    ctx: Context<CreateBondConfig>,
+    index: u8,
+    lock_period: u64,
+    bond_amount: u64,
+) -> Result<()> {
+    let bond_config = ctx.accounts.bond_config.deref_mut();
 
-        Ok(())
-    }
+    bond_config.bump = ctx.bumps.bond_config;
+    bond_config.index = index;
+    bond_config.bond_state = State::Inactive.to_code();
+    bond_config.mint_of_collection = ctx.accounts.mint_of_collection.key();
+    bond_config.lock_period = lock_period;
+    bond_config.bond_amount = bond_amount;
+    bond_config.padding = [0; 128];
+
+    Ok(())
 }

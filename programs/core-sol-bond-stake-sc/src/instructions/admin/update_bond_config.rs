@@ -8,9 +8,9 @@ pub struct UpdateBondConfig<'info> {
     #[account(
         mut,
         seeds=[BOND_CONFIG_SEED.as_bytes(), &index.to_be_bytes()],
-        bump=bond_state.bump,
+        bump=bond_config.bump,
     )]
-    pub bond_state: Account<'info, BondConfig>,
+    pub bond_config: Account<'info, BondConfig>,
 
     #[account(
         mut,
@@ -18,24 +18,26 @@ pub struct UpdateBondConfig<'info> {
     )]
     pub authority: Signer<'info>,
 }
-impl<'info> UpdateBondConfig<'info> {
-    pub fn update_bond_state(&mut self, state: u8) -> Result<()> {
-        self.bond_state.bond_state = state;
-        Ok(())
-    }
 
-    pub fn update_mint_of_collection(&mut self, mint_of_collection: Pubkey) -> Result<()> {
-        self.bond_state.mint_of_collection = mint_of_collection;
-        Ok(())
-    }
+pub fn update_bond_state(ctx: Context<UpdateBondConfig>, state: u8) -> Result<()> {
+    ctx.accounts.bond_config.bond_state = state;
+    Ok(())
+}
 
-    pub fn update_lock_period(&mut self, lock_period: u64) -> Result<()> {
-        self.bond_state.lock_period = lock_period;
-        Ok(())
-    }
+pub fn update_mint_of_collection(
+    ctx: Context<UpdateBondConfig>,
+    mint_of_collection: Pubkey,
+) -> Result<()> {
+    ctx.accounts.bond_config.mint_of_collection = mint_of_collection;
+    Ok(())
+}
 
-    pub fn update_bond_amount(&mut self, bond_amount: u64) -> Result<()> {
-        self.bond_state.bond_amount = bond_amount;
-        Ok(())
-    }
+pub fn update_lock_period(ctx: Context<UpdateBondConfig>, lock_period: u64) -> Result<()> {
+    ctx.accounts.bond_config.lock_period = lock_period;
+    Ok(())
+}
+
+pub fn update_bond_amount(ctx: Context<UpdateBondConfig>, bond_amount: u64) -> Result<()> {
+    ctx.accounts.bond_config.bond_amount = bond_amount;
+    Ok(())
 }
