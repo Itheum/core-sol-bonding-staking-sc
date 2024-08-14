@@ -34,4 +34,6 @@ pub enum Errors {
     WrongValue,
     #[msg("Bond is inactive")]
     BondIsInactive,
+    #[msg("Bond is not a vault")]
+    BondIsNotAVault,
 }

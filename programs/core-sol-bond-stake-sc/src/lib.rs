@@ -135,6 +135,14 @@ pub mod core_sol_bond_stake_sc {
         instructions::withdraw(ctx)
     }
 
+    pub fn top_up<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, TopUp<'info>>,
+        _bond_id: u8,
+        amount: u64,
+    ) -> Result<()> {
+        instructions::top_up(ctx, amount)
+    }
+
     // Rewards
 
     pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
