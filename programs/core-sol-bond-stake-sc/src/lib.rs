@@ -134,4 +134,18 @@ pub mod core_sol_bond_stake_sc {
     ) -> Result<()> {
         instructions::withdraw(ctx)
     }
+
+    // Rewards
+
+    pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, StakeRewards<'info>>,
+    ) -> Result<()> {
+        instructions::stake_rewards(ctx)
+    }
+
+    pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, ClaimRewards<'info>>,
+    ) -> Result<()> {
+        instructions::claim_rewards(ctx)
+    }
 }
