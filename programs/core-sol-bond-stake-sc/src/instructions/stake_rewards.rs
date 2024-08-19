@@ -76,12 +76,17 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
     let current_timestamp = get_current_timestamp()?;
 
     let address_rewards = &mut ctx.accounts.address_rewards;
+    let address_bonds = &mut ctx.accounts.address_bonds;
+    let vault_config = &mut ctx.accounts.vault_config;
 
     let bond = &mut ctx.accounts.bond;
 
     bond.unbond_timestamp = current_timestamp + bond.lock_period;
     bond.bond_timestamp = current_timestamp;
-    bond.bond_amount += address_rewards.claimable_amount;
+    bond.bond_amount += &address_rewards.claimable_amount;
+
+    address_bonds.address_total_bond_amount += &address_rewards.claimable_amount;
+    vault_config.total_bond_amount += &address_rewards.claimable_amount;
 
     address_rewards.claimable_amount = 0;
 
