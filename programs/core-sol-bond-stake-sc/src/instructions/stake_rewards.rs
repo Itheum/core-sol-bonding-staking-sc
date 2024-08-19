@@ -1,12 +1,13 @@
 use anchor_lang::prelude::*;
 
 use crate::{
-    update_address_claimable_rewards, AddressBonds, AddressRewards, Errors, RewardsConfig,
-    VaultConfig, ADDRESS_BONDS_SEED, REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
+    get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards, Bond,
+    Errors, RewardsConfig, VaultConfig, ADDRESS_BONDS_SEED, BOND_SEED, REWARDS_CONFIG_SEED,
+    VAULT_OWNER_SEED,
 };
 
 #[derive(Accounts)]
-
+#[instruction(bond_id:u8)]
 pub struct StakeRewards<'info> {
     #[account(
         mut,
@@ -22,6 +23,18 @@ pub struct StakeRewards<'info> {
 
     )]
     pub address_rewards: Account<'info, AddressRewards>,
+
+    #[account(
+        mut,
+        seeds = [
+            BOND_SEED.as_bytes(),
+            authority.key().as_ref(),
+            &bond_id.to_le_bytes()
+        ],
+        bump=bond.bump,
+
+    )]
+    pub bond: Account<'info, Bond>,
 
     #[account(
         mut,
@@ -49,13 +62,28 @@ pub struct StakeRewards<'info> {
 pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, StakeRewards<'info>>,
 ) -> Result<()> {
+    require!(ctx.accounts.bond.is_vault, Errors::BondIsNotAVault);
+
     update_address_claimable_rewards(
         &mut ctx.accounts.rewards_config,
         &mut ctx.accounts.address_rewards,
         &mut ctx.accounts.address_bonds,
         ctx.remaining_accounts,
         ctx.accounts.vault_config.total_bond_amount,
-        true,
+        false,
     )?;
+
+    let current_timestamp = get_current_timestamp()?;
+
+    let address_rewards = &mut ctx.accounts.address_rewards;
+
+    let bond = &mut ctx.accounts.bond;
+
+    bond.unbond_timestamp = current_timestamp + bond.lock_period;
+    bond.bond_timestamp = current_timestamp;
+    bond.bond_amount += address_rewards.claimable_amount;
+
+    address_rewards.claimable_amount = 0;
+
     Ok(())
 }
