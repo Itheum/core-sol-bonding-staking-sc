@@ -111,6 +111,14 @@ pub mod core_sol_bond_stake_sc {
         instructions::update_max_apr(ctx, max_apr)
     }
 
+    pub fn add_rewards(ctx: Context<RewardsContext>, amount: u64) -> Result<()> {
+        instructions::add_rewards(ctx, amount)
+    }
+
+    pub fn remove_rewards(ctx: Context<RewardsContext>, amount: u64) -> Result<()> {
+        instructions::remove_rewards(ctx, amount)
+    }
+
     // Bonding
 
     pub fn bond<'a, 'b, 'c: 'info, 'info>(

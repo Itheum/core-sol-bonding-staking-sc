@@ -6,3 +6,5 @@ pub mod update_rewards_config;
 pub use update_rewards_config::*;
 pub mod create_bond_config;
 pub use create_bond_config::*;
+pub mod rewards;
+pub use rewards::*;
