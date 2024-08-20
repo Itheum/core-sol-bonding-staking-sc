@@ -5,7 +5,7 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-core_sol_bond_stake_sc = "HtLmdHrUHszpc5i85NBHhrjtbkL5AFKThjCqrE9H1PYc"
+core_sol_bond_stake_sc = "2gxhxhiRqQazdyniirt9QHhJk9aguG1RgtAhfo5B4yDY"
 
 [registry]
 url = "https://api.apr.dev"
@@ -16,3 +16,22 @@ wallet = "/Users/bucurdavid/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+
+[test.validator]
+[[test.genesis]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"  
+program = "tests/metaplex_token_metadata_program.so"
+
+
+[[test.genesis]]
+address = "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY"
+program = "tests/bubble_gum_program.so"
+
+[[test.genesis]]
+address= "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV"
+program = "tests/logWrapper.so"
+
+[[test.genesis]]
+address= "cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK"
+program = "tests/compression.so"
