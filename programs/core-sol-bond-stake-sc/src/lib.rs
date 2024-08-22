@@ -27,6 +27,7 @@ pub mod core_sol_bond_stake_sc {
         bond_amount: u64,
         rewards_per_slot: u64,
         max_apr: u64,
+        withdraw_penalty: u64,
     ) -> Result<()> {
         instructions::initialize_contract(
             ctx,
@@ -35,6 +36,7 @@ pub mod core_sol_bond_stake_sc {
             bond_amount,
             rewards_per_slot,
             max_apr,
+            withdraw_penalty,
         )
     }
 

@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::{
     get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards, Bond,
     Errors, RewardsConfig, VaultConfig, ADDRESS_BONDS_SEED, BOND_SEED, REWARDS_CONFIG_SEED,
-    VAULT_OWNER_SEED,
+    VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -46,7 +46,7 @@ pub struct StakeRewards<'info> {
 
     #[account(
         mut,
-        seeds=[VAULT_OWNER_SEED.as_bytes()],
+        seeds=[VAULT_CONFIG_SEED.as_bytes()],
         bump=vault_config.bump,
     )]
     pub vault_config: Account<'info, VaultConfig>,

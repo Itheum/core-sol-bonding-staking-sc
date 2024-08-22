@@ -10,7 +10,7 @@ use mpl_token_metadata::accounts::Metadata;
 use crate::{
     get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards, Bond,
     BondConfig, Errors, RewardsConfig, State, VaultConfig, ADDRESS_BONDS_SEED,
-    ADDRESS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED, REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
+    ADDRESS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -60,7 +60,7 @@ pub struct BondContext<'info> {
     )]
     pub rewards_config: Account<'info, RewardsConfig>,
     #[account(
-        seeds=[VAULT_OWNER_SEED.as_bytes()],
+        seeds=[VAULT_CONFIG_SEED.as_bytes()],
         bump=vault_config.bump,
     )]
     pub vault_config: Account<'info, VaultConfig>,

@@ -7,7 +7,7 @@ use anchor_spl::{
 use crate::{
     get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards, Bond,
     BondConfig, Errors, RewardsConfig, State, VaultConfig, ADDRESS_BONDS_SEED, BOND_CONFIG_SEED,
-    BOND_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
+    BOND_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -56,7 +56,7 @@ pub struct Withdraw<'info> {
 
     #[account(
         mut,
-        seeds=[VAULT_OWNER_SEED.as_bytes()],
+        seeds=[VAULT_CONFIG_SEED.as_bytes()],
         bump=vault_config.bump,
         has_one=vault,
     )]
@@ -99,7 +99,7 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, Withdraw<'info>>,
 ) -> Result<()> {
     let signer_seeds: [&[&[u8]]; 1] = [&[
-        VAULT_OWNER_SEED.as_bytes(),
+        VAULT_CONFIG_SEED.as_bytes(),
         &[ctx.accounts.vault_config.bump],
     ]];
 

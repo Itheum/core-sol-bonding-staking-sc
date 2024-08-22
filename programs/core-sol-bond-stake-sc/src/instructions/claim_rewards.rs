@@ -6,7 +6,7 @@ use anchor_spl::{
 
 use crate::{
     update_address_claimable_rewards, AddressBonds, AddressRewards, Errors, RewardsConfig,
-    VaultConfig, ADDRESS_BONDS_SEED, REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
+    VaultConfig, ADDRESS_BONDS_SEED, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -36,7 +36,7 @@ pub struct ClaimRewards<'info> {
 
     #[account(
         mut,
-        seeds=[VAULT_OWNER_SEED.as_bytes()],
+        seeds=[VAULT_CONFIG_SEED.as_bytes()],
         bump=vault_config.bump,
         has_one=vault,
     )]
@@ -77,7 +77,7 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, ClaimRewards<'info>>,
 ) -> Result<()> {
     let signer_seeds: [&[&[u8]]; 1] = [&[
-        VAULT_OWNER_SEED.as_bytes(),
+        VAULT_CONFIG_SEED.as_bytes(),
         &[ctx.accounts.vault_config.bump],
     ]];
 

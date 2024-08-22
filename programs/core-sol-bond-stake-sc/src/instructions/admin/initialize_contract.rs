@@ -7,8 +7,7 @@ use anchor_spl::{
 };
 
 use crate::{
-    BondConfig, RewardsConfig, State, VaultConfig, ADMIN_PUBKEY, BOND_CONFIG_SEED,
-    REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
+   BondConfig, RewardsConfig, State, VaultConfig, ADMIN_PUBKEY, BOND_CONFIG_SEED, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED
 };
 
 #[derive(Accounts)]
@@ -17,20 +16,20 @@ pub struct InitializeContract<'info> {
     #[account(
         init,
         payer=authority,
-        seeds=[BOND_CONFIG_SEED.as_bytes(),&index.to_be_bytes()],
+        seeds=[BOND_CONFIG_SEED.as_bytes(),index.to_be_bytes().as_ref()],
         bump,
         space=BondConfig::INIT_SPACE
     )]
-    pub bond_config: Account<'info, BondConfig>,
+    pub bond_config: Box<Account<'info, BondConfig>>,
 
     #[account(
         init,
         payer=authority,
-        seeds=[VAULT_OWNER_SEED.as_bytes()],
+        seeds=[VAULT_CONFIG_SEED.as_bytes()], 
         bump,
         space=VaultConfig::INIT_SPACE,
     )]
-    vault_config: Account<'info, VaultConfig>,
+    vault_config: Box<Account<'info, VaultConfig>>,
 
     #[account(
         init_if_needed,
@@ -38,10 +37,10 @@ pub struct InitializeContract<'info> {
         associated_token::mint=mint_of_token,
         associated_token::authority=vault_config,
     )]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: Box<Account<'info, TokenAccount>>,
 
-    pub mint_of_token: Account<'info, Mint>,
-    pub mint_of_collection: Account<'info, Mint>,
+    pub mint_of_token: Box<Account<'info, Mint>>,
+    pub mint_of_collection: Box<Account<'info, Mint>>,
 
     #[account(
         init,
@@ -50,7 +49,7 @@ pub struct InitializeContract<'info> {
         bump,
         space=RewardsConfig::INIT_SPACE
     )]
-    pub rewards_config: Account<'info, RewardsConfig>,
+    pub rewards_config: Box<Account<'info, RewardsConfig>>,
 
     #[account(
         mut,
@@ -70,6 +69,7 @@ pub fn initialize_contract(
     bond_amount: u64,
     rewards_per_slot: u64,
     max_apr: u64,
+    withdraw_penalty: u64,
 ) -> Result<()> {
     let bond_config = ctx.accounts.bond_config.deref_mut();
 
@@ -79,6 +79,7 @@ pub fn initialize_contract(
     bond_config.mint_of_collection = ctx.accounts.mint_of_collection.key();
     bond_config.lock_period = lock_period;
     bond_config.bond_amount = bond_amount;
+    bond_config.withdraw_penalty = withdraw_penalty;
     bond_config.padding = [0; 128];
 
     let vault_config = ctx.accounts.vault_config.deref_mut();

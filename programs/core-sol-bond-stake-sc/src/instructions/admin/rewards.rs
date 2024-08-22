@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 
 use crate::{
-    Errors, RewardsConfig, VaultConfig, ADMIN_PUBKEY, REWARDS_CONFIG_SEED, VAULT_OWNER_SEED,
+    Errors, RewardsConfig, VaultConfig, ADMIN_PUBKEY, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -21,7 +21,7 @@ pub struct RewardsContext<'info> {
 
     #[account(
         mut,
-        seeds=[VAULT_OWNER_SEED.as_bytes()],
+        seeds=[VAULT_CONFIG_SEED.as_bytes()],
         bump=vault_config.bump,
         has_one=vault,
     )]
@@ -77,7 +77,7 @@ pub fn add_rewards(ctx: Context<RewardsContext>, amount: u64) -> Result<()> {
 
 pub fn remove_rewards(ctx: Context<RewardsContext>, amount: u64) -> Result<()> {
     let signer_seeds: [&[&[u8]]; 1] = [&[
-        VAULT_OWNER_SEED.as_bytes(),
+        VAULT_CONFIG_SEED.as_bytes(),
         &[ctx.accounts.vault_config.bump],
     ]];
     let rewards_config = &mut ctx.accounts.rewards_config;
@@ -92,7 +92,7 @@ pub fn remove_rewards(ctx: Context<RewardsContext>, amount: u64) -> Result<()> {
         from: ctx.accounts.vault.to_account_info(),
         to: ctx.accounts.authority_token_account.to_account_info(),
         mint: ctx.accounts.mint_of_token.to_account_info(),
-        authority: ctx.accounts.authority.to_account_info(),
+        authority: ctx.accounts.vault_config.to_account_info(),
     };
 
     let cpi_context = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts)
