@@ -1101,6 +1101,25 @@ describe('core-sol-bond-stake-sc', () => {
     )
 
     assert(rewards_config.rewardsReserve.eq(new anchor.BN(999_000e9)))
+
+    await program.methods
+      .addRewards(new anchor.BN(1_000e9))
+      .signers([admin])
+      .accountsPartial({
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        mintOfToken: itheum_token_mint.publicKey,
+        authority: admin.publicKey,
+        authorityTokenAccount: itheum_token_admin_ata,
+      })
+      .rpc()
+
+    let rewards_config2 = await program.account.rewardsConfig.fetch(
+      rewardsConfigPda
+    )
+
+    assert(rewards_config2.rewardsReserve.eq(new anchor.BN(1_000_000e9)))
   })
 
   it('Remove rewards by admin (should fail - mint of token mismatch)', async () => {
@@ -1189,5 +1208,16 @@ describe('core-sol-bond-stake-sc', () => {
         'A has one constraint was violated'
       )
     }
+  })
+
+  it('Activate rewards by admin', async () => {
+    await program.methods
+      .setRewardsStateActive()
+      .signers([admin])
+      .accountsPartial({
+        rewardsConfig: rewardsConfigPda,
+        authority: admin.publicKey,
+      })
+      .rpc()
   })
 })
