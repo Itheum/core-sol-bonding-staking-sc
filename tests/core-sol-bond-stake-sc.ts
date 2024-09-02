@@ -1219,5 +1219,11 @@ describe('core-sol-bond-stake-sc', () => {
         authority: admin.publicKey,
       })
       .rpc()
+
+    let rewards_config = await program.account.rewardsConfig.fetch(
+      rewardsConfigPda
+    )
+
+    assert(rewards_config.rewardsState == 1)
   })
 })
