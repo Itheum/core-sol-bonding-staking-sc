@@ -82,6 +82,9 @@ pub struct BondContext<'info> {
     pub authority: Signer<'info>,
 
     /// CHECK: unsafe
+    #[account(
+        constraint= merkle_tree.key() == bond_config.merkle_tree.key() @ Errors::MerkleTreeMismatch,
+    )]
     pub merkle_tree: UncheckedAccount<'info>,
 
     /// CHECK: unsafe

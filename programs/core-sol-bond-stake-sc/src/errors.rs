@@ -36,4 +36,6 @@ pub enum Errors {
     BondIsInactive,
     #[msg("Bond is not a vault")]
     BondIsNotAVault,
+    #[msg("Merkle tree mismatch")]
+    MerkleTreeMismatch,
 }
