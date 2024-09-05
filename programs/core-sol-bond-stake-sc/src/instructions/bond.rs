@@ -5,7 +5,8 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, Mint, Token, TokenAccount, TransferChecked},
 };
-use mpl_token_metadata::accounts::Metadata;
+use mpl_bubblegum::{types::LeafSchema, utils::get_asset_id};
+use spl_account_compression::program::SplAccountCompression;
 
 use crate::{
     get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards, Bond,
@@ -80,11 +81,11 @@ pub struct BondContext<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 
-    pub mint_of_nft: Account<'info, Mint>,
+    /// CHECK: unsafe
+    pub merkle_tree: UncheckedAccount<'info>,
 
-    /// CHECK: This is the account we'll fetch metadata for
-    #[account(mut)]
-    pub metadata: AccountInfo<'info>,
+    /// CHECK: unsafe
+    pub leaf_delegate: UncheckedAccount<'info>,
 
     #[account(
         mut,
@@ -98,6 +99,7 @@ pub struct BondContext<'info> {
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
     associated_token_program: Program<'info, AssociatedToken>,
+    pub compression_program: Program<'info, SplAccountCompression>,
 }
 
 pub fn bond<'a, 'b, 'c: 'info, 'info>(
@@ -105,6 +107,11 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     bond_id: u8,
     amount: u64,
     is_vault: bool,
+    root: [u8; 32],
+    data_hash: [u8; 32],
+    creator_hash: [u8; 32],
+    nonce: u64,
+    index: u32,
 ) -> Result<()> {
     require!(
         ctx.accounts.bond_config.bond_amount == amount,
@@ -141,41 +148,26 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
         padding: [0; 32],
     });
 
-    // Not really required
-    let (metadata, _) = Pubkey::find_program_address(
-        &[
-            "metadata".as_bytes(),
-            mpl_token_metadata::ID.as_ref(),
-            ctx.accounts.mint_of_nft.key().as_ref(),
-        ],
-        &mpl_token_metadata::ID,
-    );
-    // Not really required
-    require!(
-        metadata == ctx.accounts.metadata.key(),
-        Errors::MetadataAccountMismatch
-    );
+    // check leaf owner here
+    let asset_id = get_asset_id(&ctx.accounts.merkle_tree.key(), nonce);
 
-    let mint_metadata = Metadata::safe_deserialize(&ctx.accounts.metadata.try_borrow_data()?)?;
+    let leaf = LeafSchema::V1 {
+        id: asset_id,
+        owner: ctx.accounts.authority.key(),
+        delegate: ctx.accounts.leaf_delegate.key(),
+        nonce,
+        data_hash,
+        creator_hash,
+    };
+    let cpi_ctx = CpiContext::new(
+        ctx.accounts.compression_program.to_account_info(),
+        spl_account_compression::cpi::accounts::VerifyLeaf {
+            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+        },
+    )
+    .with_remaining_accounts(ctx.remaining_accounts.to_vec());
 
-    // Check if the creator is the same as the authority
-    let collection_key = mint_metadata
-        .collection
-        .ok_or(Errors::MintFromWrongCollection)?
-        .key;
-
-    require!(
-        ctx.accounts.bond_config.mint_of_collection == collection_key,
-        Errors::MintFromWrongCollection
-    );
-
-    let is_creator = mint_metadata.creators.map_or(false, |creators| {
-        creators
-            .iter()
-            .any(|c| c.address == ctx.accounts.authority.key())
-    });
-
-    require!(is_creator, Errors::NotTheMintCreator);
+    spl_account_compression::cpi::verify_leaf(cpi_ctx, root, leaf.hash(), index)?;
 
     let current_timestamp = get_current_timestamp()?;
 
@@ -210,7 +202,7 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
         bond_timestamp: current_timestamp,
         bond_amount: amount,
         lock_period: ctx.accounts.bond_config.lock_period,
-        mint_of_nft: ctx.accounts.mint_of_nft.key(),
+        asset_id: asset_id.key(),
         owner: ctx.accounts.authority.key(),
         padding: [0; 64],
     });

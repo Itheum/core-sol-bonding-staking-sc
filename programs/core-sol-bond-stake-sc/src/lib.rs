@@ -60,12 +60,12 @@ pub mod core_sol_bond_stake_sc {
         instructions::update_bond_state(ctx, State::Inactive.to_code())
     }
 
-    pub fn update_mint_of_collection(
+    pub fn update_merkle_tree(
         ctx: Context<UpdateBondConfig>,
         _index: u8,
-        mint_of_collection: Pubkey,
+        merkle_tree: Pubkey,
     ) -> Result<()> {
-        instructions::update_mint_of_collection(ctx, mint_of_collection)
+        instructions::update_merkle_tree(ctx, merkle_tree)
     }
 
     pub fn update_lock_period(
@@ -129,8 +129,23 @@ pub mod core_sol_bond_stake_sc {
         bond_id: u8,
         amount: u64,
         is_vault: bool,
+        root: [u8; 32],
+        data_hash: [u8; 32],
+        creator_hash: [u8; 32],
+        nonce: u64,
+        index: u32,
     ) -> Result<()> {
-        instructions::bond(ctx, bond_id, amount, is_vault)
+        instructions::bond(
+            ctx,
+            bond_id,
+            amount,
+            is_vault,
+            root,
+            data_hash,
+            creator_hash,
+            nonce,
+            index,
+        )
     }
 
     pub fn renew(ctx: Context<Renew>, _bond_id: u8) -> Result<()> {

@@ -1,7 +1,6 @@
 use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::Mint;
 
 use crate::{BondConfig, State, ADMIN_PUBKEY, BOND_CONFIG_SEED};
 
@@ -17,7 +16,8 @@ pub struct CreateBondConfig<'info> {
     )]
     pub bond_config: Account<'info, BondConfig>,
 
-    pub mint_of_collection: Account<'info, Mint>,
+    /// CHECK: unsafe
+    pub merkle_tree: UncheckedAccount<'info>,
 
     #[account(
         mut,
@@ -40,7 +40,7 @@ pub fn create_bond_config(
     bond_config.bump = ctx.bumps.bond_config;
     bond_config.index = index;
     bond_config.bond_state = State::Inactive.to_code();
-    bond_config.mint_of_collection = ctx.accounts.mint_of_collection.key();
+    bond_config.merkle_tree = ctx.accounts.merkle_tree.key();
     bond_config.lock_period = lock_period;
     bond_config.bond_amount = bond_amount;
     bond_config.withdraw_penalty = withdraw_penalty;

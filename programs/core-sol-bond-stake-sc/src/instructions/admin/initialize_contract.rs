@@ -40,7 +40,8 @@ pub struct InitializeContract<'info> {
     pub vault: Box<Account<'info, TokenAccount>>,
 
     pub mint_of_token: Box<Account<'info, Mint>>,
-    pub mint_of_collection: Box<Account<'info, Mint>>,
+      /// CHECK: unsafe
+      pub merkle_tree: UncheckedAccount<'info>,
 
     #[account(
         init,
@@ -76,7 +77,7 @@ pub fn initialize_contract(
     bond_config.bump = ctx.bumps.bond_config;
     bond_config.index = index;
     bond_config.bond_state = State::Inactive.to_code();
-    bond_config.mint_of_collection = ctx.accounts.mint_of_collection.key();
+    bond_config.merkle_tree = ctx.accounts.merkle_tree.key();
     bond_config.lock_period = lock_period;
     bond_config.bond_amount = bond_amount;
     bond_config.withdraw_penalty = withdraw_penalty;
