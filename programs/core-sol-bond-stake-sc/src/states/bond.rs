@@ -9,7 +9,7 @@ pub struct Bond {
     pub unbond_timestamp: u64,
     pub bond_amount: u64,
     pub lock_period: u64,
-    pub mint_of_nft: Pubkey,
+    pub asset_id: Pubkey,
     pub owner: Pubkey,
     pub padding: [u8; 64],
 }
