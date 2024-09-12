@@ -15,7 +15,7 @@ pub fn generate_aggregated_rewards<'a, 'b, 'c: 'info, 'info>(
     let max_apr = rewards_config.max_apr;
 
     let extra_rewards: u64;
-    if max_apr == 0 {
+    if max_apr > 0 {
         let extra_rewards_apr_bonded_per_slot =
             get_amount_apr_bounded(rewards_config.max_apr, vault_config.total_bond_amount);
 
@@ -127,34 +127,10 @@ pub fn update_address_claimable_rewards<'info>(
         .mul_div_floor(1 * DIVISION_SAFETY_CONST - decay, DIVISION_SAFETY_CONST)
         .unwrap();
 
-    msg!(
-        "weighted liveliness score: {}",
-        address_bonds.weighted_liveliness_score
-    );
-    msg!(
-        "weighted_liveliness_score_decayed: {}",
-        weighted_liveliness_score_decayed
-    );
-    msg!("decay: {}", decay);
-    msg!(
-        "address total bond amount: {}",
-        address_bonds.address_total_bond_amount
-    );
-    msg!(
-        "weight to be subtracted: {}",
-        weight_to_be_subtracted.unwrap_or(0)
-    );
-    msg!("weight to be added: {}", weight_to_be_added.unwrap_or(0));
-    msg!(
-        "bond to be subtracted: {}",
-        bond_to_be_subtracted.unwrap_or(0)
-    );
-    msg!("bond to be added: {}", bond_to_be_added.unwrap_or(0));
-
     let weighted_liveliness_new = (weighted_liveliness_score_decayed
-        * address_bonds.address_total_bond_amount
-        - weight_to_be_subtracted.unwrap_or(0)
-        + weight_to_be_added.unwrap_or(0))
+        .saturating_mul(address_bonds.address_total_bond_amount)
+        .saturating_sub(weight_to_be_subtracted.unwrap_or(0))
+        .saturating_add(weight_to_be_added.unwrap_or(0)))
         / (address_bonds.address_total_bond_amount + bond_to_be_added.unwrap_or(0)
             - bond_to_be_subtracted.unwrap_or(0));
 
@@ -177,7 +153,6 @@ pub fn update_address_claimable_rewards<'info>(
 
     address_rewards.address_rewards_per_share = rewards_config.rewards_per_share;
     address_rewards.claimable_amount += address_claimable_rewards;
-    rewards_config.accumulated_rewards -= address_claimable_rewards;
 
     Ok(())
 }
