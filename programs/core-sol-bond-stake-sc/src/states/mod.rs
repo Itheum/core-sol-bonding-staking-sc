@@ -10,3 +10,5 @@ pub mod bond;
 pub use bond::*;
 pub mod address_rewards;
 pub use address_rewards::*;
+pub mod asset_usage;
+pub use asset_usage::*;

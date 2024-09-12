@@ -2,12 +2,12 @@ use anchor_lang::prelude::*;
 
 use crate::{
     get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards, Bond,
-    Errors, RewardsConfig, VaultConfig, ADDRESS_BONDS_SEED, BOND_SEED, REWARDS_CONFIG_SEED,
-    VAULT_CONFIG_SEED,
+    BondConfig, Errors, RewardsConfig, VaultConfig, ADDRESS_BONDS_SEED, BOND_CONFIG_SEED,
+    BOND_SEED, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
-#[instruction(bond_id:u8)]
+#[instruction(bond_config_index:u8,bond_id:u8)]
 pub struct StakeRewards<'info> {
     #[account(
         mut,
@@ -37,6 +37,12 @@ pub struct StakeRewards<'info> {
     pub bond: Account<'info, Bond>,
 
     #[account(
+        seeds=[BOND_CONFIG_SEED.as_bytes(),&bond_config_index.to_be_bytes()],
+        bump=bond_config.bump,
+    )]
+    pub bond_config: Account<'info, BondConfig>,
+
+    #[account(
         mut,
         seeds=[REWARDS_CONFIG_SEED.as_bytes()],
         bump=rewards_config.bump,
@@ -53,8 +59,8 @@ pub struct StakeRewards<'info> {
 
     #[account(
         mut,
-        constraint=address_bonds.address == authority.key() @ Errors::WrongOwner,
-        constraint=address_rewards.address==authority.key() @Errors::WrongOwner,
+        constraint=address_bonds.address == authority.key() @ Errors::OwnerMismatch,
+        constraint=address_rewards.address==authority.key() @Errors::OwnerMismatch,
     )]
     pub authority: Signer<'info>,
 }
@@ -66,11 +72,15 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
 
     update_address_claimable_rewards(
         &mut ctx.accounts.rewards_config,
+        &mut ctx.accounts.vault_config,
         &mut ctx.accounts.address_rewards,
         &mut ctx.accounts.address_bonds,
-        ctx.remaining_accounts,
-        ctx.accounts.vault_config.total_bond_amount,
+        ctx.accounts.bond_config.lock_period,
         false,
+        Option::None,
+        Option::None,
+        Option::None,
+        Option::None,
     )?;
 
     let current_timestamp = get_current_timestamp()?;
@@ -81,7 +91,7 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
 
     let bond = &mut ctx.accounts.bond;
 
-    bond.unbond_timestamp = current_timestamp + bond.lock_period;
+    bond.unbond_timestamp = current_timestamp + ctx.accounts.bond_config.lock_period;
     bond.bond_timestamp = current_timestamp;
     bond.bond_amount += &address_rewards.claimable_amount;
 

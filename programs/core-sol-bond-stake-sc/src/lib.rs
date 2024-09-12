@@ -13,7 +13,7 @@ use constants::*;
 mod errors;
 use errors::*;
 
-declare_id!("2gxhxhiRqQazdyniirt9QHhJk9aguG1RgtAhfo5B4yDY");
+declare_id!("4V8Luy9PjMdzF5VzNLGKH5uxXUXeBFooayEHXBGpXnxo");
 
 #[program]
 pub mod core_sol_bond_stake_sc {
@@ -38,6 +38,10 @@ pub mod core_sol_bond_stake_sc {
             max_apr,
             withdraw_penalty,
         )
+    }
+
+    pub fn initialize_vault(ctx: Context<InitializeVault>) -> Result<()> {
+        instructions::initialize_vault(ctx)
     }
 
     // Create new bond config
@@ -123,11 +127,16 @@ pub mod core_sol_bond_stake_sc {
 
     // Bonding
 
+    pub fn initialize_address(ctx: Context<InitializeAddress>) -> Result<()> {
+        instructions::initialize_address(ctx)
+    }
+
     pub fn bond<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'info, 'info, BondContext<'info>>,
         _bond_config_index: u8,
         bond_id: u8,
         amount: u64,
+        asset_id: Pubkey,
         is_vault: bool,
         root: [u8; 32],
         data_hash: [u8; 32],
@@ -135,10 +144,15 @@ pub mod core_sol_bond_stake_sc {
         nonce: u64,
         index: u32,
     ) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::bond(
             ctx,
             bond_id,
             amount,
+            asset_id,
             is_vault,
             root,
             data_hash,
@@ -148,7 +162,11 @@ pub mod core_sol_bond_stake_sc {
         )
     }
 
-    pub fn renew(ctx: Context<Renew>, _bond_id: u8) -> Result<()> {
+    pub fn renew(ctx: Context<Renew>, _bond_config_index: u8, _bond_id: u8) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::renew(ctx)
     }
 
@@ -157,14 +175,23 @@ pub mod core_sol_bond_stake_sc {
         _bond_config_index: u8,
         _bond_id: u8,
     ) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::withdraw(ctx)
     }
 
     pub fn top_up<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, TopUp<'info>>,
+        _bond_config_index: u8,
         _bond_id: u8,
         amount: u64,
     ) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::top_up(ctx, amount)
     }
 
@@ -173,12 +200,24 @@ pub mod core_sol_bond_stake_sc {
     pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, StakeRewards<'info>>,
     ) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
+        require!(
+            ctx.accounts.rewards_config.rewards_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::stake_rewards(ctx)
     }
 
     pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, ClaimRewards<'info>>,
     ) -> Result<()> {
+        require!(
+            ctx.accounts.rewards_config.rewards_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::claim_rewards(ctx)
     }
 }

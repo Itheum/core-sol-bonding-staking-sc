@@ -5,11 +5,13 @@ use anchor_spl::{
 };
 
 use crate::{
-    update_address_claimable_rewards, AddressBonds, AddressRewards, Errors, RewardsConfig,
-    VaultConfig, ADDRESS_BONDS_SEED, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
+    update_address_claimable_rewards, AddressBonds, AddressRewards, BondConfig, Errors,
+    RewardsConfig, VaultConfig, ADDRESS_BONDS_SEED, BOND_CONFIG_SEED, REWARDS_CONFIG_SEED,
+    VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
+#[instruction(bond_config_index:u8)]
 pub struct ClaimRewards<'info> {
     #[account(
         mut,
@@ -25,6 +27,12 @@ pub struct ClaimRewards<'info> {
 
     )]
     pub address_rewards: Account<'info, AddressRewards>,
+
+    #[account(
+        seeds=[BOND_CONFIG_SEED.as_bytes(),&bond_config_index.to_be_bytes()],
+        bump=bond_config.bump,
+    )]
+    pub bond_config: Account<'info, BondConfig>,
 
     #[account(
         mut,
@@ -56,8 +64,8 @@ pub struct ClaimRewards<'info> {
 
     #[account(
         mut,
-        constraint=address_bonds.address == authority.key() @ Errors::WrongOwner,
-        constraint=address_rewards.address==authority.key() @Errors::WrongOwner,
+        constraint=address_bonds.address == authority.key() @ Errors::OwnerMismatch,
+        constraint=address_rewards.address==authority.key() @Errors::OwnerMismatch,
     )]
     pub authority: Signer<'info>,
 
@@ -83,11 +91,15 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
 
     update_address_claimable_rewards(
         &mut ctx.accounts.rewards_config,
+        &ctx.accounts.vault_config,
         &mut ctx.accounts.address_rewards,
         &mut ctx.accounts.address_bonds,
-        ctx.remaining_accounts,
-        ctx.accounts.vault_config.total_bond_amount,
+        ctx.accounts.bond_config.lock_period,
         false,
+        Option::None,
+        Option::None,
+        Option::None,
+        Option::None,
     )?;
 
     require!(

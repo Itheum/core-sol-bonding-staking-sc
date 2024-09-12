@@ -5,13 +5,14 @@ use anchor_spl::{
 };
 
 use crate::{
-    get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards, Bond,
-    Errors, RewardsConfig, State, VaultConfig, ADDRESS_BONDS_SEED, BOND_SEED, REWARDS_CONFIG_SEED,
-    VAULT_CONFIG_SEED,
+    full_math::MulDiv, get_current_timestamp, update_address_claimable_rewards, AddressBonds,
+    AddressRewards, Bond, BondConfig, Errors, RewardsConfig, State, VaultConfig,
+    ADDRESS_BONDS_SEED, ADDRESS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED, MAX_PERCENT,
+    REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
-#[instruction(bond_id: u8, amount:u64)]
+#[instruction(bond_config_index:u8,bond_id: u8, amount:u64)]
 
 pub struct TopUp<'info> {
     #[account(
@@ -23,11 +24,17 @@ pub struct TopUp<'info> {
 
     #[account(
         mut,
-        seeds=[ADDRESS_BONDS_SEED.as_bytes(), authority.key().as_ref()],
+        seeds=[ADDRESS_REWARDS_SEED.as_bytes(), authority.key().as_ref()],
         bump=address_rewards.bump,
 
     )]
     pub address_rewards: Account<'info, AddressRewards>,
+
+    #[account(
+        seeds=[BOND_CONFIG_SEED.as_bytes(),&bond_config_index.to_be_bytes()],
+        bump=bond_config.bump,
+    )]
+    pub bond_config: Account<'info, BondConfig>,
 
     #[account(
         mut,
@@ -64,7 +71,6 @@ pub struct TopUp<'info> {
 
     #[account(
         mut,
-        constraint=vault.amount >= bond.bond_amount @ Errors::NotEnoughBalance,
         associated_token::mint=vault_config.mint_of_token,
         associated_token::authority=vault_config,
     )]
@@ -72,9 +78,9 @@ pub struct TopUp<'info> {
 
     #[account(
         mut,
-        constraint=bond.owner == authority.key() @ Errors::WrongOwner,
-        constraint=address_bonds.address == authority.key() @ Errors::WrongOwner,
-        constraint=address_rewards.address==authority.key() @Errors::WrongOwner,
+        constraint=bond.owner == authority.key() @ Errors::OwnerMismatch,
+        constraint=address_bonds.address == authority.key() @ Errors::OwnerMismatch,
+        constraint=address_rewards.address==authority.key() @Errors::OwnerMismatch,
     )]
     pub authority: Signer<'info>,
 
@@ -94,15 +100,6 @@ pub fn top_up<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, TopUp<'info>>,
     amount: u64,
 ) -> Result<()> {
-    update_address_claimable_rewards(
-        &mut ctx.accounts.rewards_config,
-        &mut ctx.accounts.address_rewards,
-        &mut ctx.accounts.address_bonds,
-        ctx.remaining_accounts,
-        ctx.accounts.vault_config.total_bond_amount,
-        true,
-    )?;
-
     let bond = &mut ctx.accounts.bond;
 
     require!(
@@ -112,11 +109,41 @@ pub fn top_up<'a, 'b, 'c: 'info, 'info>(
 
     require!(bond.is_vault, Errors::BondIsNotAVault);
 
-    let vault_config = &mut ctx.accounts.vault_config;
-
     let current_timestamp = get_current_timestamp()?;
 
-    bond.unbond_timestamp = current_timestamp + bond.lock_period;
+    let weight_to_be_added = (bond.bond_amount + amount) * MAX_PERCENT;
+    let bond_to_be_added = amount;
+    let weight_to_be_subtracted = if current_timestamp < bond.unbond_timestamp {
+        bond.bond_amount
+            .mul_div_floor(
+                bond.unbond_timestamp - current_timestamp,
+                ctx.accounts.bond_config.lock_period,
+            )
+            .unwrap()
+            * MAX_PERCENT
+    } else {
+        0
+    };
+
+    update_address_claimable_rewards(
+        &mut ctx.accounts.rewards_config,
+        &ctx.accounts.vault_config,
+        &mut ctx.accounts.address_rewards,
+        &mut ctx.accounts.address_bonds,
+        ctx.accounts.bond_config.lock_period,
+        true,
+        Option::Some(weight_to_be_added),
+        Option::Some(bond_to_be_added),
+        Option::Some(weight_to_be_subtracted),
+        Option::None,
+    )?;
+
+    let vault_config = &mut ctx.accounts.vault_config;
+    let address_bonds = &mut ctx.accounts.address_bonds;
+
+    address_bonds.address_total_bond_amount += amount;
+
+    bond.unbond_timestamp = current_timestamp + ctx.accounts.bond_config.lock_period;
     bond.bond_timestamp = current_timestamp;
     bond.bond_amount += amount;
 

@@ -10,9 +10,9 @@ pub struct RewardsConfig {
     pub rewards_per_share: u64,
     pub last_reward_slot: u64,
     pub max_apr: u64,
-    pub padding: [u8; 128],
+    pub padding: [u8; 32],
 }
 
 impl Space for RewardsConfig {
-    const INIT_SPACE: usize = 8 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 128;
+    const INIT_SPACE: usize = 8 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 32;
 }

@@ -1,14 +1,14 @@
 use crate::{
-    compute_bond_score, get_current_slot, get_current_timestamp, AddressBonds, AddressRewards,
-    Bond, Errors, RewardsConfig, State, DIVISION_SAFETY_CONST, MAX_PERCENT, SLOTS_IN_YEAR,
+    get_current_slot, get_current_timestamp, AddressBonds, AddressRewards, RewardsConfig, State,
+    VaultConfig, DIVISION_SAFETY_CONST, MAX_PERCENT, SLOTS_IN_YEAR,
 };
 use anchor_lang::prelude::*;
 
 use super::full_math::MulDiv;
 
 pub fn generate_aggregated_rewards<'a, 'b, 'c: 'info, 'info>(
-    total_bond_amount: u64,
     rewards_config: &mut Account<'info, RewardsConfig>,
+    vault_config: &Account<'info, VaultConfig>,
 ) -> Result<()> {
     let last_reward_slot = rewards_config.last_reward_slot;
     let extra_rewards_unbounded = calculate_rewards_since_last_allocation(rewards_config)?;
@@ -17,7 +17,7 @@ pub fn generate_aggregated_rewards<'a, 'b, 'c: 'info, 'info>(
     let extra_rewards: u64;
     if max_apr == 0 {
         let extra_rewards_apr_bonded_per_slot =
-            get_amount_apr_bounded(rewards_config.max_apr, rewards_config.rewards_reserve);
+            get_amount_apr_bounded(rewards_config.max_apr, vault_config.total_bond_amount);
 
         let current_slot = get_current_slot()?;
 
@@ -32,7 +32,7 @@ pub fn generate_aggregated_rewards<'a, 'b, 'c: 'info, 'info>(
 
     if extra_rewards > 0 && extra_rewards <= rewards_config.rewards_reserve {
         let increment = extra_rewards
-            .mul_div_floor(DIVISION_SAFETY_CONST, total_bond_amount)
+            .mul_div_floor(DIVISION_SAFETY_CONST, vault_config.total_bond_amount)
             .unwrap();
 
         rewards_config.rewards_per_share += increment;
@@ -102,42 +102,67 @@ pub fn calculate_address_share_in_rewards(
 
 pub fn update_address_claimable_rewards<'info>(
     rewards_config: &mut Account<'info, RewardsConfig>,
+    vault_config: &Account<'info, VaultConfig>,
     address_rewards: &mut Account<'info, AddressRewards>,
     address_bonds: &mut Account<'info, AddressBonds>,
-    remaining_accounts: &'info [AccountInfo<'info>],
-    total_bond_amount: u64,
+    lock_period: u64,
     bypass_liveliness_score: bool,
+    weight_to_be_added: Option<u64>,
+    bond_to_be_added: Option<u64>,
+    weight_to_be_subtracted: Option<u64>,
+    bond_to_be_subtracted: Option<u64>,
 ) -> Result<()> {
-    generate_aggregated_rewards(total_bond_amount, rewards_config)?;
+    generate_aggregated_rewards(rewards_config, vault_config)?;
 
     let current_timestamp = get_current_timestamp()?;
 
     let mut liveliness_score = 0u64;
 
+    let decay = (current_timestamp - address_bonds.last_update_timestamp)
+        .mul_div_floor(DIVISION_SAFETY_CONST, lock_period)
+        .unwrap();
+
+    let weighted_liveliness_score_decayed = address_bonds
+        .weighted_liveliness_score
+        .mul_div_floor(1 * DIVISION_SAFETY_CONST - decay, DIVISION_SAFETY_CONST)
+        .unwrap();
+
+    msg!(
+        "weighted liveliness score: {}",
+        address_bonds.weighted_liveliness_score
+    );
+    msg!(
+        "weighted_liveliness_score_decayed: {}",
+        weighted_liveliness_score_decayed
+    );
+    msg!("decay: {}", decay);
+    msg!(
+        "address total bond amount: {}",
+        address_bonds.address_total_bond_amount
+    );
+    msg!(
+        "weight to be subtracted: {}",
+        weight_to_be_subtracted.unwrap_or(0)
+    );
+    msg!("weight to be added: {}", weight_to_be_added.unwrap_or(0));
+    msg!(
+        "bond to be subtracted: {}",
+        bond_to_be_subtracted.unwrap_or(0)
+    );
+    msg!("bond to be added: {}", bond_to_be_added.unwrap_or(0));
+
+    let weighted_liveliness_new = (weighted_liveliness_score_decayed
+        * address_bonds.address_total_bond_amount
+        - weight_to_be_subtracted.unwrap_or(0)
+        + weight_to_be_added.unwrap_or(0))
+        / (address_bonds.address_total_bond_amount + bond_to_be_added.unwrap_or(0)
+            - bond_to_be_subtracted.unwrap_or(0));
+
+    address_bonds.weighted_liveliness_score = weighted_liveliness_new;
+    address_bonds.last_update_timestamp = current_timestamp;
+
     if !bypass_liveliness_score {
-        // fetch remaining accounts and compute liveliness
-        require!(
-            remaining_accounts.len() == address_bonds.current_index as usize,
-            Errors::InvalidRemainingAccounts
-        );
-
-        let mut total_bond_score = 0u64;
-        let mut bond_amounts = 0u64;
-
-        // load remaining accounts on the heap
-        for account in remaining_accounts.iter() {
-            let bond = Box::new(Account::<Bond>::try_from(account)?);
-            require!(bond.owner == address_bonds.address, Errors::WrongOwner);
-            if bond.state == State::Inactive.to_code() {
-                continue;
-            }
-            bond_amounts += bond.bond_amount;
-            total_bond_score +=
-                compute_bond_score(bond.lock_period, current_timestamp, bond.unbond_timestamp)
-                    * bond.bond_amount;
-        }
-
-        liveliness_score = total_bond_score / bond_amounts;
+        liveliness_score = weighted_liveliness_score_decayed;
     }
 
     let address_claimable_rewards = calculate_address_share_in_rewards(
@@ -145,7 +170,7 @@ pub fn update_address_claimable_rewards<'info>(
         rewards_config.rewards_per_share,
         address_bonds.address_total_bond_amount,
         address_rewards.address_rewards_per_share,
-        total_bond_amount,
+        vault_config.total_bond_amount,
         liveliness_score,
         bypass_liveliness_score,
     );
