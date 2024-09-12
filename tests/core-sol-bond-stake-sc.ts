@@ -130,6 +130,8 @@ describe('core-sol-bond-stake-sc', () => {
     true
   )
 
+  let activation_slot: number = 0
+
   const confirm = async (signature: string): Promise<string> => {
     const block = await connection.getLatestBlockhash()
     await connection.confirmTransaction({
@@ -2019,8 +2021,6 @@ describe('core-sol-bond-stake-sc', () => {
       })
       .rpc({skipPreflight: true})
 
-    log(x)
-
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBonds,
@@ -2032,14 +2032,9 @@ describe('core-sol-bond-stake-sc', () => {
       userBonds
     )
 
-    console.log(normalWeighted)
-    console.log(addressBondsFetched.weightedLivelinessScore.toNumber())
-
     const tolerance = normalWeighted * 0.001
     const lowerBound = normalWeighted - tolerance
     const upperBound = normalWeighted + tolerance
-
-    await delay(100000)
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
@@ -2169,12 +2164,36 @@ describe('core-sol-bond-stake-sc', () => {
       )
     }
   })
+
+  it('Update rewards per slot by admin', async () => {
+    await program.methods
+      .updateRewardsPerSlot(new anchor.BN(1e6))
+      .signers([admin])
+      .accounts({
+        rewardsConfig: rewardsConfigPda,
+        authority: admin.publicKey,
+      })
+      .rpc()
+  })
+
   it('Activate rewards by admin', async () => {
     await program.methods
+      .updateMaxApr(new anchor.BN(0))
+      .signers([admin])
+      .accounts({rewardsConfig: rewardsConfigPda, authority: admin.publicKey})
+      .rpc()
+
+    let x = await program.methods
       .setRewardsStateActive()
       .signers([admin])
       .accounts({rewardsConfig: rewardsConfigPda, authority: admin.publicKey})
       .rpc()
+
+    let newConn = new Connection('http://localhost:8899', 'confirmed')
+
+    let sigStatus = await newConn.getSignatureStatus(x)
+
+    activation_slot = sigStatus.context.slot
   })
 
   it('Renew bond 2 by user', async () => {
@@ -2188,67 +2207,74 @@ describe('core-sol-bond-stake-sc', () => {
       program.programId
     )[0]
 
-    const userRewardsBefore = await program.account.addressRewards.fetch(
-      userRewards
-    )
-
-    console.group('User rewards before renew')
-    console.log(userRewardsBefore.addressRewardsPerShare)
-    console.log(userRewardsBefore.claimableAmount)
-    console.groupEnd()
-
     const bond2 = PublicKey.findProgramAddressSync(
       [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([2])],
       program.programId
     )[0]
-    try {
-      let x = await program.methods
-        .renew(1, 2)
-        .signers([user])
-        .accounts({
-          bondConfig: bondConfigPda1,
-          rewardsConfig: rewardsConfigPda,
-          vaultConfig: vaultConfigPda,
-          addressBonds: userBonds,
-          addressRewards: userRewards,
-          bond: bond2,
-          authority: user.publicKey,
-        })
-        .rpc({skipPreflight: true})
 
-      log(x)
-    } catch (err) {
-      console.log(err)
-      await delay(100000)
-    }
-    // const normalWeighted = await calculateWeightedLivelinessScore(
-    //   x,
-    //   userBonds,
-    //   bondConfigPda1,
-    //   program
-    // )
+    let x = await program.methods
+      .renew(1, 2)
+      .signers([user])
+      .accounts({
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        addressBonds: userBonds,
+        addressRewards: userRewards,
+        bond: bond2,
+        authority: user.publicKey,
+      })
+      .rpc({skipPreflight: true})
 
-    // const addressBondsFetched = await program.account.addressBonds.fetch(
-    //   userBonds
-    // )
+    log(x)
 
-    // assert(
-    //   addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    // )
-
-    const userRewardsAfter = await program.account.addressRewards.fetch(
-      userRewards
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBonds,
+      bondConfigPda1,
+      program
     )
 
-    console.group('User rewards after renew')
-    console.log(userRewardsAfter.addressRewardsPerShare)
-    console.log(userRewardsAfter.claimableAmount)
-    console.groupEnd()
+    const addressBondsFetched = await program.account.addressBonds.fetch(
+      userBonds
+    )
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    )
+
+    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
+      rewardsConfigPda
+    )
+
+    let total_rewards = await calculateTotalRewardsInInterval(
+      activation_slot,
+      rewardsConfigPda,
+      program
+    )
+
+    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards)
   })
 })
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function calculateTotalRewardsInInterval(
+  previous_slot: number,
+  rewardsConfigPda: PublicKey,
+  program: anchor.Program<CoreSolBondStakeSc>
+) {
+  let rewards_config = await program.account.rewardsConfig.fetch(
+    rewardsConfigPda
+  )
+
+  let slots = rewards_config.lastRewardSlot.toNumber() - previous_slot
+
+  let total_rewards = rewards_config.rewardsPerSlot.mul(new anchor.BN(slots))
+
+  return total_rewards.toNumber()
 }
 
 async function calculateWeightedLivelinessScore(
