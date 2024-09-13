@@ -5,9 +5,10 @@ use anchor_spl::{
 };
 
 use crate::{
-    update_address_claimable_rewards, AddressBonds, AddressRewards, BondConfig, Errors,
-    RewardsConfig, VaultConfig, ADDRESS_BONDS_SEED, BOND_CONFIG_SEED, REWARDS_CONFIG_SEED,
-    VAULT_CONFIG_SEED,
+    compute_decay, compute_weighted_liveliness_decay, compute_weighted_liveliness_new,
+    get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards,
+    BondConfig, Errors, RewardsConfig, VaultConfig, ADDRESS_BONDS_SEED, ADDRESS_REWARDS_SEED,
+    BOND_CONFIG_SEED, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -22,7 +23,7 @@ pub struct ClaimRewards<'info> {
 
     #[account(
         mut,
-        seeds=[ADDRESS_BONDS_SEED.as_bytes(), authority.key().as_ref()],
+        seeds=[ADDRESS_REWARDS_SEED.as_bytes(), authority.key().as_ref()],
         bump=address_rewards.bump,
 
     )]
@@ -89,17 +90,35 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
         &[ctx.accounts.vault_config.bump],
     ]];
 
+    let current_timestamp = get_current_timestamp()?;
+
+    let decay = compute_decay(
+        ctx.accounts.address_bonds.last_update_timestamp,
+        current_timestamp,
+        ctx.accounts.bond_config.lock_period,
+    );
+
+    let weighted_liveliness_score_decayed = compute_weighted_liveliness_decay(
+        ctx.accounts.address_bonds.weighted_liveliness_score,
+        decay,
+    );
+
+    let weighted_liveliness_score_new = compute_weighted_liveliness_new(
+        weighted_liveliness_score_decayed,
+        ctx.accounts.address_bonds.address_total_bond_amount,
+        0,
+        0,
+        0,
+        0,
+    );
+
     update_address_claimable_rewards(
         &mut ctx.accounts.rewards_config,
         &ctx.accounts.vault_config,
         &mut ctx.accounts.address_rewards,
         &mut ctx.accounts.address_bonds,
-        ctx.accounts.bond_config.lock_period,
+        weighted_liveliness_score_decayed,
         false,
-        Option::None,
-        Option::None,
-        Option::None,
-        Option::None,
     )?;
 
     require!(
@@ -109,11 +128,16 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
 
     let address_rewards = &mut ctx.accounts.address_rewards;
 
+    let address_bonds = &mut ctx.accounts.address_bonds;
+
+    address_bonds.weighted_liveliness_score = weighted_liveliness_score_new;
+    address_bonds.last_update_timestamp = current_timestamp;
+
     let cpi_accounts = TransferChecked {
         from: ctx.accounts.vault.to_account_info(),
         to: ctx.accounts.authority_token_account.to_account_info(),
         mint: ctx.accounts.mint_of_token_to_receive.to_account_info(),
-        authority: ctx.accounts.authority.to_account_info(),
+        authority: ctx.accounts.vault_config.to_account_info(),
     };
 
     let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts)

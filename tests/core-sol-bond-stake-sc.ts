@@ -1678,7 +1678,7 @@ describe('core-sol-bond-stake-sc', () => {
         1,
         new anchor.BN(100e9),
         toWeb3JsPublicKey(user2_nft_leaf_schemas[0].id),
-        false,
+        true,
         Array.from(bs58.decode(user2_nft_leaf_schemas[0].id)),
         Array.from(user2_nft_leaf_schemas[0].dataHash),
         Array.from(user2_nft_leaf_schemas[0].creatorHash),
@@ -1897,7 +1897,7 @@ describe('core-sol-bond-stake-sc', () => {
     }
   })
 
-  it(' TopUp bond 1 by user - wrong user accounts (should fail)', async () => {
+  it('TopUp bond 1 by user - wrong user accounts (should fail)', async () => {
     const userBonds = PublicKey.findProgramAddressSync(
       [Buffer.from('address_bonds'), user2.publicKey.toBuffer()],
       program.programId
@@ -1988,7 +1988,6 @@ describe('core-sol-bond-stake-sc', () => {
     )
   })
   it('Withdraw bond 1 by user', async () => {
-    await delay(15000)
     const userBonds = PublicKey.findProgramAddressSync(
       [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
       program.programId
@@ -2196,7 +2195,7 @@ describe('core-sol-bond-stake-sc', () => {
     activation_slot = sigStatus.context.slot
   })
 
-  it('Renew bond 2 by user', async () => {
+  it('Check user rewards - (renew bond 2 by user)', async () => {
     const userBonds = PublicKey.findProgramAddressSync(
       [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
       program.programId
@@ -2212,6 +2211,12 @@ describe('core-sol-bond-stake-sc', () => {
       program.programId
     )[0]
 
+    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
+      userRewards
+    )
+
+    let userBondsBefore = await program.account.addressBonds.fetch(userBonds)
+
     let x = await program.methods
       .renew(1, 2)
       .signers([user])
@@ -2225,8 +2230,6 @@ describe('core-sol-bond-stake-sc', () => {
         authority: user.publicKey,
       })
       .rpc({skipPreflight: true})
-
-    log(x)
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
@@ -2253,7 +2256,383 @@ describe('core-sol-bond-stake-sc', () => {
       program
     )
 
+    let userRewardsAcc = await program.account.addressRewards.fetch(userRewards)
+
+    let user_rewards = await calculateUserRewards(
+      normalWeighted,
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      true,
+      program
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 ===
+        userRewardsAcc.claimableAmount.toNumber()
+    )
+
     assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards)
+  })
+
+  it('Check user2 rewards - (renew bond 1 by user2)', async () => {
+    const user2Bonds = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds'), user2.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const user2Rewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_rewards'), user2.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
+      user2Rewards
+    )
+
+    let userBondsBefore = await program.account.addressBonds.fetch(user2Bonds)
+
+    let x = await program.methods
+      .renew(1, 1)
+      .signers([user2])
+      .accounts({
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        addressBonds: user2Bonds,
+        addressRewards: user2Rewards,
+        bond: bond1,
+        authority: user2.publicKey,
+      })
+      .rpc({skipPreflight: true})
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      user2Bonds,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBonds.fetch(
+      user2Bonds
+    )
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    )
+
+    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
+      rewardsConfigPda
+    )
+
+    let total_rewards = await calculateTotalRewardsInInterval(
+      activation_slot,
+      rewardsConfigPda,
+      program
+    )
+
+    let userRewardsAcc = await program.account.addressRewards.fetch(
+      user2Rewards
+    )
+
+    let user_rewards = await calculateUserRewards(
+      normalWeighted,
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      true,
+      program
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 ===
+        userRewardsAcc.claimableAmount.toNumber()
+    )
+
+    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards)
+  })
+
+  it('Check user rewards - bond 3 by user', async () => {
+    const userBonds = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const userRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const assetUsage3 = PublicKey.findProgramAddressSync(
+      [toWeb3JsPublicKey(user_nft_leaf_schemas[2].id).toBuffer()],
+      program.programId
+    )[0]
+
+    const bond3 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([3])],
+      program.programId
+    )[0]
+
+    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
+      userRewards
+    )
+
+    let userBondsBefore = await program.account.addressBonds.fetch(userBonds)
+
+    let x = await program.methods
+      .bond(
+        1,
+        3,
+        new anchor.BN(100e9),
+        toWeb3JsPublicKey(user_nft_leaf_schemas[2].id),
+        false,
+        Array.from(bs58.decode(user_nft_leaf_schemas[2].id)),
+        Array.from(user_nft_leaf_schemas[2].dataHash),
+        Array.from(user_nft_leaf_schemas[2].creatorHash),
+        new anchor.BN(user_nft_leaf_schemas[2].nonce.toString()),
+        1
+      )
+      .signers([user])
+      .accounts({
+        addressBonds: userBonds,
+        addressRewards: userRewards,
+        assetUsage: assetUsage3,
+        bond: bond3,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        mintOfTokenSent: itheum_token_mint.publicKey,
+        authority: user.publicKey,
+        merkleTree: merkleTree,
+        authorityTokenAccount: itheum_token_user_ata,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+      })
+      .remainingAccounts([
+        {
+          pubkey: new PublicKey(merkleTree),
+          isSigner: false,
+          isWritable: false,
+        },
+      ])
+      .rpc()
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBonds,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBonds.fetch(
+      userBonds
+    )
+
+    const tolerance = normalWeighted * 0.0001
+    const lowerBound = normalWeighted - tolerance
+    const upperBound = normalWeighted + tolerance
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
+        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
+      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    )
+
+    let userRewardsAcc = await program.account.addressRewards.fetch(userRewards)
+
+    let user_rewards = await calculateUserRewards(
+      addressBondsFetched.weightedLivelinessScore.toNumber(),
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      true,
+      program
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 ===
+        userRewardsAcc.claimableAmount.toNumber()
+    )
+  })
+
+  it('Stake rewards user2', async () => {
+    const userBonds = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds'), user2.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const userRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_rewards'), user2.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
+      rewardsConfigPda
+    )
+
+    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
+      userRewards
+    )
+
+    let bondBefore = await program.account.bond.fetch(bond)
+
+    let userBondsBefore = await program.account.addressBonds.fetch(userBonds)
+
+    let x = await program.methods
+      .stakeRewards(1, 1)
+      .signers([user2])
+      .accounts({
+        addressBonds: userBonds,
+        addressRewards: userRewards,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        bond: bond,
+        authority: user2.publicKey,
+      })
+      .rpc()
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBonds,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBonds.fetch(
+      userBonds
+    )
+
+    const tolerance = normalWeighted * 0.0001
+    const lowerBound = normalWeighted - tolerance
+    const upperBound = normalWeighted + tolerance
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
+        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
+      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    )
+
+    let userRewardsAcc = await program.account.addressRewards.fetch(userRewards)
+
+    let bondAfter = await program.account.bond.fetch(bond)
+
+    let user_rewards = await calculateUserRewards(
+      addressBondsFetched.weightedLivelinessScore.toNumber(),
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      false,
+      program
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 +
+        bondBefore.bondAmount.toNumber() ===
+        bondAfter.bondAmount.toNumber()
+    )
+    assert(userRewardsAcc.claimableAmount.toNumber() === 0)
+  })
+
+  it('Claim rewards user', async () => {
+    let userBonds = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    let userRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
+      userRewards
+    )
+    let userBondsBefore = await program.account.addressBonds.fetch(userBonds)
+
+    let user_balance_before = await provider.connection.getTokenAccountBalance(
+      itheum_token_user_ata
+    )
+
+    let x = await program.methods
+      .claimRewards(1)
+      .signers([user])
+      .accounts({
+        addressBonds: userBonds,
+        addressRewards: userRewards,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        mintOfTokenToReceive: itheum_token_mint.publicKey,
+        authority: user.publicKey,
+        authorityTokenAccount: itheum_token_user_ata,
+      })
+      .rpc()
+
+    let normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBonds,
+      bondConfigPda1,
+      program
+    )
+
+    let addressBondsFetched = await program.account.addressBonds.fetch(
+      userBonds
+    )
+
+    const tolerance = normalWeighted * 0.0001
+    const lowerBound = normalWeighted - tolerance
+    const upperBound = normalWeighted + tolerance
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
+        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
+      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    )
+
+    let user_rewards = await calculateUserRewards(
+      addressBondsFetched.weightedLivelinessScore.toNumber(),
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      false,
+      program
+    )
+
+    let user_balance_after = await provider.connection.getTokenAccountBalance(
+      itheum_token_user_ata
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 +
+        Number(user_balance_before.value.amount) ===
+        Number(user_balance_after.value.amount)
+    )
+
+    let addressRewardsAccAfter = await program.account.addressRewards.fetch(
+      userRewards
+    )
+
+    assert(addressRewardsAccAfter.claimableAmount.toNumber() === 0)
   })
 })
 
@@ -2275,6 +2654,28 @@ async function calculateTotalRewardsInInterval(
   let total_rewards = rewards_config.rewardsPerSlot.mul(new anchor.BN(slots))
 
   return total_rewards.toNumber()
+}
+
+// calculate user rewards based on the total rewards
+async function calculateUserRewards(
+  normalWeighted: number,
+  address_last_rewards_per_share: anchor.BN,
+  address_last_total_bond_amount: anchor.BN,
+  rewards_config: PublicKey,
+  bypassLiveliness: boolean,
+  program: anchor.Program<CoreSolBondStakeSc>
+) {
+  const rewardsAcc = await program.account.rewardsConfig.fetch(rewards_config)
+
+  let user_rewards = address_last_total_bond_amount.mul(
+    rewardsAcc.rewardsPerShare.sub(address_last_rewards_per_share)
+  )
+
+  if (normalWeighted >= 9500 || bypassLiveliness) {
+    return user_rewards.toNumber()
+  } else {
+    return (user_rewards.toNumber() * normalWeighted) / 10000
+  }
 }
 
 async function calculateWeightedLivelinessScore(

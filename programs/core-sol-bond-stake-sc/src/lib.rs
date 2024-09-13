@@ -199,6 +199,8 @@ pub mod core_sol_bond_stake_sc {
 
     pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, StakeRewards<'info>>,
+        _bond_config_index: u8,
+        _bond_id: u8,
     ) -> Result<()> {
         require!(
             ctx.accounts.bond_config.bond_state == State::Active.to_code(),
@@ -213,6 +215,7 @@ pub mod core_sol_bond_stake_sc {
 
     pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, ClaimRewards<'info>>,
+        _bond_config_index: u8,
     ) -> Result<()> {
         require!(
             ctx.accounts.rewards_config.rewards_state == State::Active.to_code(),
