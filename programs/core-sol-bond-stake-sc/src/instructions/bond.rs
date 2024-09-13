@@ -173,10 +173,6 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     address_bonds.weighted_liveliness_score = weighted_liveliness_score_new;
     address_bonds.last_update_timestamp = current_timestamp;
 
-    msg!(
-        "address claimable rewards: {}",
-        ctx.accounts.address_rewards.claimable_amount
-    );
     // check leaf owner here
     let asset_id = get_asset_id(&ctx.accounts.merkle_tree.key(), nonce);
 

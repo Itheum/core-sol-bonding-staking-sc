@@ -115,18 +115,6 @@ pub fn update_address_claimable_rewards<'info>(
         liveliness_score = weighted_liveliness_score_decayed;
     }
 
-    msg!(
-        "address total bond amount: {}",
-        address_bonds.address_total_bond_amount
-    );
-
-    msg!("rewards per share: {}", rewards_config.rewards_per_share);
-
-    msg!(
-        "address rewards per share: {}",
-        address_rewards.address_rewards_per_share
-    );
-
     let address_claimable_rewards = calculate_address_share_in_rewards(
         rewards_config.accumulated_rewards,
         rewards_config.rewards_per_share,
@@ -136,8 +124,6 @@ pub fn update_address_claimable_rewards<'info>(
         liveliness_score,
         bypass_liveliness_score,
     );
-
-    msg!("address_claimable_rewards: {}", address_claimable_rewards);
 
     address_rewards.address_rewards_per_share = rewards_config.rewards_per_share;
     address_rewards.claimable_amount += address_claimable_rewards;
