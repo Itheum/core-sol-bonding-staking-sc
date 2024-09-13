@@ -1,5 +1,5 @@
 use crate::{
-    get_current_slot, AddressBonds, AddressRewards, RewardsConfig, State, VaultConfig,
+    get_current_slot, AddressBondsRewards, RewardsConfig, State, VaultConfig,
     DIVISION_SAFETY_CONST, MAX_PERCENT, SLOTS_IN_YEAR,
 };
 use anchor_lang::prelude::*;
@@ -102,8 +102,7 @@ pub fn calculate_address_share_in_rewards(
 pub fn update_address_claimable_rewards<'info>(
     rewards_config: &mut Account<'info, RewardsConfig>,
     vault_config: &Account<'info, VaultConfig>,
-    address_rewards: &mut Account<'info, AddressRewards>,
-    address_bonds: &mut Account<'info, AddressBonds>,
+    address_bonds_rewards: &mut Account<'info, AddressBondsRewards>,
     weighted_liveliness_score_decayed: u64,
     bypass_liveliness_score: bool,
 ) -> Result<()> {
@@ -118,15 +117,15 @@ pub fn update_address_claimable_rewards<'info>(
     let address_claimable_rewards = calculate_address_share_in_rewards(
         rewards_config.accumulated_rewards,
         rewards_config.rewards_per_share,
-        address_bonds.address_total_bond_amount,
-        address_rewards.address_rewards_per_share,
+        address_bonds_rewards.address_total_bond_amount,
+        address_bonds_rewards.address_rewards_per_share,
         vault_config.total_bond_amount,
         liveliness_score,
         bypass_liveliness_score,
     );
 
-    address_rewards.address_rewards_per_share = rewards_config.rewards_per_share;
-    address_rewards.claimable_amount += address_claimable_rewards;
+    address_bonds_rewards.address_rewards_per_share = rewards_config.rewards_per_share;
+    address_bonds_rewards.claimable_amount += address_claimable_rewards;
 
     Ok(())
 }

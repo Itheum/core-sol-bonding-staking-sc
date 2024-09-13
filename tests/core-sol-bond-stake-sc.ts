@@ -47,13 +47,11 @@ import {
   toWeb3JsPublicKey,
 } from '@metaplex-foundation/umi-web3js-adapters'
 import {createUmi} from '@metaplex-foundation/umi-bundle-defaults'
-import {Amman} from '@metaplex-foundation/amman-client'
 import {bs58} from '@coral-xyz/anchor/dist/cjs/utils/bytes'
 
 require('dotenv').config()
 
 describe('core-sol-bond-stake-sc', () => {
-  const amman = Amman.instance()
   anchor.setProvider(anchor.AnchorProvider.env())
 
   const provider = anchor.getProvider()
@@ -1253,13 +1251,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Bond 1 by user - should fail (address not initialized)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1289,8 +1282,7 @@ describe('core-sol-bond-stake-sc', () => {
         )
         .signers([user])
         .accounts({
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           assetUsage: assetUsage1,
           bond: bond1,
           bondConfig: bondConfigPda1,
@@ -1332,13 +1324,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Bond 1 by user - wrong bond amount (should fail)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1356,8 +1343,7 @@ describe('core-sol-bond-stake-sc', () => {
       .initializeAddress()
       .signers([user])
       .accounts({
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: userBondsRewards,
         rewardsConfig: rewardsConfigPda,
         authority: user.publicKey,
       })
@@ -1379,8 +1365,7 @@ describe('core-sol-bond-stake-sc', () => {
         )
         .signers([user])
         .accounts({
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           assetUsage: assetUsage1,
           bond: bond1,
           bondConfig: bondConfigPda1,
@@ -1414,13 +1399,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Bond 1 by user - wrong bond id (should fail)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1450,8 +1430,7 @@ describe('core-sol-bond-stake-sc', () => {
         )
         .signers([user])
         .accounts({
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           assetUsage: assetUsage1,
           bond: bond1,
           bondConfig: bondConfigPda1,
@@ -1485,13 +1464,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Bond 1 by user', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1520,8 +1494,7 @@ describe('core-sol-bond-stake-sc', () => {
       )
       .signers([user])
       .accounts({
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: userBondsRewards,
         assetUsage: assetUsage1,
         bond: bond1,
         bondConfig: bondConfigPda1,
@@ -1548,13 +1521,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      userBonds,
+      userBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      userBonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     assert(
@@ -1563,13 +1536,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Bond 2 by user', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1598,8 +1566,7 @@ describe('core-sol-bond-stake-sc', () => {
       )
       .signers([user])
       .accounts({
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: userBondsRewards,
         assetUsage: assetUsage2,
         bond: bond2,
         bondConfig: bondConfigPda1,
@@ -1626,13 +1593,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      userBonds,
+      userBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      userBonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     assert(
@@ -1641,13 +1608,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Bond 1 by user2', async () => {
-    const user2Bonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user2.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const user2Rewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user2.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1665,8 +1627,7 @@ describe('core-sol-bond-stake-sc', () => {
       .initializeAddress()
       .signers([user2])
       .accounts({
-        addressBonds: user2Bonds,
-        addressRewards: user2Rewards,
+        addressBondsRewards: userBondsRewards,
         rewardsConfig: rewardsConfigPda,
         authority: user2.publicKey,
       })
@@ -1687,8 +1648,7 @@ describe('core-sol-bond-stake-sc', () => {
       )
       .signers([user2])
       .accounts({
-        addressBonds: user2Bonds,
-        addressRewards: user2Rewards,
+        addressBondsRewards: userBondsRewards,
         assetUsage: assetUsage1,
         bond: bond1,
         bondConfig: bondConfigPda1,
@@ -1715,13 +1675,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      user2Bonds,
+      userBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      user2Bonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     assert(
@@ -1730,13 +1690,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Renew bond 1 by user - wrong bond (should fail)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1753,8 +1708,7 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda1,
           rewardsConfig: rewardsConfigPda,
           vaultConfig: vaultConfigPda,
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           bond: bond1,
           authority: user.publicKey,
         })
@@ -1769,13 +1723,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Renew bond 1 by user', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1791,8 +1740,7 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         rewardsConfig: rewardsConfigPda,
         vaultConfig: vaultConfigPda,
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: userBondsRewards,
         bond: bond1,
         authority: user.publicKey,
       })
@@ -1800,13 +1748,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      userBonds,
+      userBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      userBonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     assert(
@@ -1815,13 +1763,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('TopUp bond 2 by user - bond not vault (should fail)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1835,8 +1778,7 @@ describe('core-sol-bond-stake-sc', () => {
         .topUp(1, 2, new anchor.BN(100e9))
         .signers([user])
         .accounts({
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           bondConfig: bondConfigPda1,
           rewardsConfig: rewardsConfigPda,
           mintOfTokenSent: itheum_token_mint.publicKey,
@@ -1856,13 +1798,8 @@ describe('core-sol-bond-stake-sc', () => {
     }
   })
   it('TopUp bond 1 by user - wrong mint of token (should fail)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1876,8 +1813,7 @@ describe('core-sol-bond-stake-sc', () => {
         .topUp(1, 1, new anchor.BN(100e9))
         .signers([user])
         .accounts({
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           bondConfig: bondConfigPda1,
           rewardsConfig: rewardsConfigPda,
           mintOfTokenSent: another_token_mint.publicKey,
@@ -1898,13 +1834,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('TopUp bond 1 by user - wrong user accounts (should fail)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user2.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user2.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1918,8 +1849,7 @@ describe('core-sol-bond-stake-sc', () => {
         .topUp(1, 1, new anchor.BN(100e9))
         .signers([user])
         .accounts({
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           bondConfig: bondConfigPda1,
           rewardsConfig: rewardsConfigPda,
           mintOfTokenSent: itheum_token_mint.publicKey,
@@ -1940,13 +1870,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('TopUp bond 1 by user', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -1959,8 +1884,7 @@ describe('core-sol-bond-stake-sc', () => {
       .topUp(1, 1, new anchor.BN(100e9))
       .signers([user])
       .accounts({
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: userBondsRewards,
         bondConfig: bondConfigPda1,
         rewardsConfig: rewardsConfigPda,
         mintOfTokenSent: itheum_token_mint.publicKey,
@@ -1974,13 +1898,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      userBonds,
+      userBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      userBonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     assert(
@@ -1988,13 +1912,8 @@ describe('core-sol-bond-stake-sc', () => {
     )
   })
   it('Withdraw bond 1 by user', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -2007,8 +1926,7 @@ describe('core-sol-bond-stake-sc', () => {
       .withdraw(1, 1)
       .signers([user])
       .accounts({
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: userBondsRewards,
         bondConfig: bondConfigPda1,
         rewardsConfig: rewardsConfigPda,
         mintOfTokenToReceive: itheum_token_mint.publicKey,
@@ -2022,13 +1940,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      userBonds,
+      userBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      userBonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     const tolerance = normalWeighted * 0.001
@@ -2043,13 +1961,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Withdraw bond 1 by user - already withdrawn (should fail)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -2063,8 +1976,7 @@ describe('core-sol-bond-stake-sc', () => {
         .withdraw(1, 1)
         .signers([user])
         .accounts({
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           bondConfig: bondConfigPda1,
           rewardsConfig: rewardsConfigPda,
           mintOfTokenToReceive: itheum_token_mint.publicKey,
@@ -2085,13 +1997,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Top up bond 1 by user - bond inactive (should fail)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -2105,8 +2012,7 @@ describe('core-sol-bond-stake-sc', () => {
         .topUp(1, 1, new anchor.BN(100e9))
         .signers([user])
         .accounts({
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           bondConfig: bondConfigPda1,
           rewardsConfig: rewardsConfigPda,
           mintOfTokenSent: itheum_token_mint.publicKey,
@@ -2126,13 +2032,8 @@ describe('core-sol-bond-stake-sc', () => {
     }
   })
   it('Renew bond 1 by user - bond inactive (should fail)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -2149,8 +2050,7 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda1,
           rewardsConfig: rewardsConfigPda,
           vaultConfig: vaultConfigPda,
-          addressBonds: userBonds,
-          addressRewards: userRewards,
+          addressBondsRewards: userBondsRewards,
           bond: bond1,
           authority: user.publicKey,
         })
@@ -2196,13 +2096,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Check user rewards - (renew bond 2 by user)', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -2211,11 +2106,12 @@ describe('core-sol-bond-stake-sc', () => {
       program.programId
     )[0]
 
-    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
-      userRewards
-    )
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(userBondsRewards)
 
-    let userBondsBefore = await program.account.addressBonds.fetch(userBonds)
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
 
     let x = await program.methods
       .renew(1, 2)
@@ -2224,8 +2120,7 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         rewardsConfig: rewardsConfigPda,
         vaultConfig: vaultConfigPda,
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: userBondsRewards,
         bond: bond2,
         authority: user.publicKey,
       })
@@ -2233,13 +2128,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      userBonds,
+      userBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      userBonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     assert(
@@ -2256,7 +2151,9 @@ describe('core-sol-bond-stake-sc', () => {
       program
     )
 
-    let userRewardsAcc = await program.account.addressRewards.fetch(userRewards)
+    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
 
     let user_rewards = await calculateUserRewards(
       normalWeighted,
@@ -2277,13 +2174,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Check user2 rewards - (renew bond 1 by user2)', async () => {
-    const user2Bonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user2.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const user2Rewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user2.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -2292,11 +2184,12 @@ describe('core-sol-bond-stake-sc', () => {
       program.programId
     )[0]
 
-    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
-      user2Rewards
-    )
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(userBondsRewards)
 
-    let userBondsBefore = await program.account.addressBonds.fetch(user2Bonds)
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
 
     let x = await program.methods
       .renew(1, 1)
@@ -2305,8 +2198,7 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         rewardsConfig: rewardsConfigPda,
         vaultConfig: vaultConfigPda,
-        addressBonds: user2Bonds,
-        addressRewards: user2Rewards,
+        addressBondsRewards: userBondsRewards,
         bond: bond1,
         authority: user2.publicKey,
       })
@@ -2314,13 +2206,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      user2Bonds,
+      userBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      user2Bonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     assert(
@@ -2337,8 +2229,8 @@ describe('core-sol-bond-stake-sc', () => {
       program
     )
 
-    let userRewardsAcc = await program.account.addressRewards.fetch(
-      user2Rewards
+    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     let user_rewards = await calculateUserRewards(
@@ -2360,13 +2252,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Check user rewards - bond 3 by user', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -2380,11 +2267,12 @@ describe('core-sol-bond-stake-sc', () => {
       program.programId
     )[0]
 
-    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
-      userRewards
-    )
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(userBondsRewards)
 
-    let userBondsBefore = await program.account.addressBonds.fetch(userBonds)
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
 
     let x = await program.methods
       .bond(
@@ -2401,8 +2289,7 @@ describe('core-sol-bond-stake-sc', () => {
       )
       .signers([user])
       .accounts({
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: userBondsRewards,
         assetUsage: assetUsage3,
         bond: bond3,
         bondConfig: bondConfigPda1,
@@ -2429,13 +2316,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      userBonds,
+      userBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      userBonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
     )
 
     const tolerance = normalWeighted * 0.0001
@@ -2448,7 +2335,9 @@ describe('core-sol-bond-stake-sc', () => {
       `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
     )
 
-    let userRewardsAcc = await program.account.addressRewards.fetch(userRewards)
+    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
 
     let user_rewards = await calculateUserRewards(
       addressBondsFetched.weightedLivelinessScore.toNumber(),
@@ -2467,13 +2356,8 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Stake rewards user2', async () => {
-    const userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user2.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    const userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user2.publicKey.toBuffer()],
+    const addressBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
       program.programId
     )[0]
 
@@ -2486,20 +2370,20 @@ describe('core-sol-bond-stake-sc', () => {
       rewardsConfigPda
     )
 
-    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
-      userRewards
-    )
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(addressBondsRewards)
 
     let bondBefore = await program.account.bond.fetch(bond)
 
-    let userBondsBefore = await program.account.addressBonds.fetch(userBonds)
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
+    )
 
     let x = await program.methods
       .stakeRewards(1, 1)
       .signers([user2])
       .accounts({
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: addressBondsRewards,
         bondConfig: bondConfigPda1,
         rewardsConfig: rewardsConfigPda,
         vaultConfig: vaultConfigPda,
@@ -2510,13 +2394,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      userBonds,
+      addressBondsRewards,
       bondConfigPda1,
       program
     )
 
-    const addressBondsFetched = await program.account.addressBonds.fetch(
-      userBonds
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
     )
 
     const tolerance = normalWeighted * 0.0001
@@ -2529,7 +2413,9 @@ describe('core-sol-bond-stake-sc', () => {
       `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
     )
 
-    let userRewardsAcc = await program.account.addressRewards.fetch(userRewards)
+    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
+    )
 
     let bondAfter = await program.account.bond.fetch(bond)
 
@@ -2552,20 +2438,16 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Claim rewards user', async () => {
-    let userBonds = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds'), user.publicKey.toBuffer()],
+    const addressBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
       program.programId
     )[0]
 
-    let userRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_rewards'), user.publicKey.toBuffer()],
-      program.programId
-    )[0]
-
-    let addressRewardsAccBefore = await program.account.addressRewards.fetch(
-      userRewards
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(addressBondsRewards)
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
     )
-    let userBondsBefore = await program.account.addressBonds.fetch(userBonds)
 
     let user_balance_before = await provider.connection.getTokenAccountBalance(
       itheum_token_user_ata
@@ -2575,8 +2457,7 @@ describe('core-sol-bond-stake-sc', () => {
       .claimRewards(1)
       .signers([user])
       .accounts({
-        addressBonds: userBonds,
-        addressRewards: userRewards,
+        addressBondsRewards: addressBondsRewards,
         bondConfig: bondConfigPda1,
         rewardsConfig: rewardsConfigPda,
         vaultConfig: vaultConfigPda,
@@ -2589,13 +2470,13 @@ describe('core-sol-bond-stake-sc', () => {
 
     let normalWeighted = await calculateWeightedLivelinessScore(
       x,
-      userBonds,
+      addressBondsRewards,
       bondConfigPda1,
       program
     )
 
-    let addressBondsFetched = await program.account.addressBonds.fetch(
-      userBonds
+    let addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
     )
 
     const tolerance = normalWeighted * 0.0001
@@ -2628,9 +2509,8 @@ describe('core-sol-bond-stake-sc', () => {
         Number(user_balance_after.value.amount)
     )
 
-    let addressRewardsAccAfter = await program.account.addressRewards.fetch(
-      userRewards
-    )
+    let addressRewardsAccAfter =
+      await program.account.addressBondsRewards.fetch(addressBondsRewards)
 
     assert(addressRewardsAccAfter.claimableAmount.toNumber() === 0)
   })
@@ -2695,7 +2575,9 @@ async function calculateWeightedLivelinessScore(
 
   let current_timestamp = blockTime
 
-  const userBondsAcc = await program.account.addressBonds.fetch(userBondsPda)
+  const userBondsAcc = await program.account.addressBondsRewards.fetch(
+    userBondsPda
+  )
 
   const bondConfigAcc = await program.account.bondConfig.fetch(bondsConfigPda)
 

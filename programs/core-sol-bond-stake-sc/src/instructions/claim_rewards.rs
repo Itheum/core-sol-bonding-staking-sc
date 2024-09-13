@@ -6,9 +6,9 @@ use anchor_spl::{
 
 use crate::{
     compute_decay, compute_weighted_liveliness_decay, compute_weighted_liveliness_new,
-    get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards,
-    BondConfig, Errors, RewardsConfig, VaultConfig, ADDRESS_BONDS_SEED, ADDRESS_REWARDS_SEED,
-    BOND_CONFIG_SEED, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
+    get_current_timestamp, update_address_claimable_rewards, AddressBondsRewards, BondConfig,
+    Errors, RewardsConfig, VaultConfig, ADDRESS_BONDS_REWARDS_SEED, BOND_CONFIG_SEED,
+    REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -16,18 +16,10 @@ use crate::{
 pub struct ClaimRewards<'info> {
     #[account(
         mut,
-        seeds=[ADDRESS_BONDS_SEED.as_bytes(), authority.key().as_ref()],
-        bump=address_bonds.bump,
+        seeds=[ADDRESS_BONDS_REWARDS_SEED.as_bytes(), authority.key().as_ref()],
+        bump=address_bonds_rewards.bump,
     )]
-    pub address_bonds: Account<'info, AddressBonds>,
-
-    #[account(
-        mut,
-        seeds=[ADDRESS_REWARDS_SEED.as_bytes(), authority.key().as_ref()],
-        bump=address_rewards.bump,
-
-    )]
-    pub address_rewards: Account<'info, AddressRewards>,
+    pub address_bonds_rewards: Box<Account<'info, AddressBondsRewards>>,
 
     #[account(
         seeds=[BOND_CONFIG_SEED.as_bytes(),&bond_config_index.to_be_bytes()],
@@ -65,8 +57,7 @@ pub struct ClaimRewards<'info> {
 
     #[account(
         mut,
-        constraint=address_bonds.address == authority.key() @ Errors::OwnerMismatch,
-        constraint=address_rewards.address==authority.key() @Errors::OwnerMismatch,
+        constraint=address_bonds_rewards.address==authority.key() @Errors::OwnerMismatch,
     )]
     pub authority: Signer<'info>,
 
@@ -93,19 +84,19 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
     let current_timestamp = get_current_timestamp()?;
 
     let decay = compute_decay(
-        ctx.accounts.address_bonds.last_update_timestamp,
+        ctx.accounts.address_bonds_rewards.last_update_timestamp,
         current_timestamp,
         ctx.accounts.bond_config.lock_period,
     );
 
     let weighted_liveliness_score_decayed = compute_weighted_liveliness_decay(
-        ctx.accounts.address_bonds.weighted_liveliness_score,
+        ctx.accounts.address_bonds_rewards.weighted_liveliness_score,
         decay,
     );
 
     let weighted_liveliness_score_new = compute_weighted_liveliness_new(
         weighted_liveliness_score_decayed,
-        ctx.accounts.address_bonds.address_total_bond_amount,
+        ctx.accounts.address_bonds_rewards.address_total_bond_amount,
         0,
         0,
         0,
@@ -115,23 +106,20 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
     update_address_claimable_rewards(
         &mut ctx.accounts.rewards_config,
         &ctx.accounts.vault_config,
-        &mut ctx.accounts.address_rewards,
-        &mut ctx.accounts.address_bonds,
+        &mut ctx.accounts.address_bonds_rewards,
         weighted_liveliness_score_decayed,
         false,
     )?;
 
     require!(
-        ctx.accounts.vault.amount >= ctx.accounts.address_rewards.claimable_amount,
+        ctx.accounts.vault.amount >= ctx.accounts.address_bonds_rewards.claimable_amount,
         Errors::NotEnoughBalance
     );
 
-    let address_rewards = &mut ctx.accounts.address_rewards;
+    let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
 
-    let address_bonds = &mut ctx.accounts.address_bonds;
-
-    address_bonds.weighted_liveliness_score = weighted_liveliness_score_new;
-    address_bonds.last_update_timestamp = current_timestamp;
+    address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
+    address_bonds_rewards.last_update_timestamp = current_timestamp;
 
     let cpi_accounts = TransferChecked {
         from: ctx.accounts.vault.to_account_info(),
@@ -145,11 +133,11 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
 
     transfer_checked(
         cpi_ctx,
-        address_rewards.claimable_amount,
+        address_bonds_rewards.claimable_amount,
         ctx.accounts.mint_of_token_to_receive.decimals,
     )?;
 
-    address_rewards.claimable_amount = 0;
+    address_bonds_rewards.claimable_amount = 0;
 
     Ok(())
 }

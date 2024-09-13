@@ -2,10 +2,10 @@ use anchor_lang::prelude::*;
 
 use crate::{
     compute_decay, compute_weighted_liveliness_decay, compute_weighted_liveliness_new,
-    full_math::MulDiv, get_current_timestamp, update_address_claimable_rewards, AddressBonds,
-    AddressRewards, Bond, BondConfig, Errors, RewardsConfig, State, VaultConfig,
-    ADDRESS_BONDS_SEED, ADDRESS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED, MAX_PERCENT,
-    REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
+    full_math::MulDiv, get_current_timestamp, update_address_claimable_rewards,
+    AddressBondsRewards, Bond, BondConfig, Errors, RewardsConfig, State, VaultConfig,
+    ADDRESS_BONDS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED,
+    VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -34,18 +34,10 @@ pub struct Renew<'info> {
 
     #[account(
         mut,
-        seeds=[ADDRESS_BONDS_SEED.as_bytes(), authority.key().as_ref()],
-        bump=address_bonds.bump,
+        seeds=[ADDRESS_BONDS_REWARDS_SEED.as_bytes(), authority.key().as_ref()],
+        bump=address_bonds_rewards.bump,
     )]
-    pub address_bonds: Account<'info, AddressBonds>,
-
-    #[account(
-        mut,
-        seeds=[ADDRESS_REWARDS_SEED.as_bytes(), authority.key().as_ref()],
-        bump=address_rewards.bump,
-
-    )]
-    pub address_rewards: Account<'info, AddressRewards>,
+    pub address_bonds_rewards: Box<Account<'info, AddressBondsRewards>>,
 
     #[account(
         mut,
@@ -62,8 +54,7 @@ pub struct Renew<'info> {
     #[account(
         mut,
         constraint=bond.owner == authority.key() @ Errors::OwnerMismatch,
-        constraint=address_bonds.address == authority.key() @ Errors::OwnerMismatch,
-        constraint=address_rewards.address==authority.key() @Errors::OwnerMismatch,
+        constraint=address_bonds_rewards.address==authority.key() @Errors::OwnerMismatch,
     )]
     pub authority: Signer<'info>,
 }
@@ -92,38 +83,37 @@ pub fn renew(ctx: Context<Renew>) -> Result<()> {
     };
 
     let decay = compute_decay(
-        ctx.accounts.address_bonds.last_update_timestamp,
+        ctx.accounts.address_bonds_rewards.last_update_timestamp,
         current_timestamp,
         ctx.accounts.bond_config.lock_period,
     );
 
     let weighted_liveliness_score_decayed = compute_weighted_liveliness_decay(
-        ctx.accounts.address_bonds.weighted_liveliness_score,
+        ctx.accounts.address_bonds_rewards.weighted_liveliness_score,
         decay,
     );
 
     update_address_claimable_rewards(
         &mut ctx.accounts.rewards_config,
         &ctx.accounts.vault_config,
-        &mut ctx.accounts.address_rewards,
-        &mut ctx.accounts.address_bonds,
+        &mut ctx.accounts.address_bonds_rewards,
         weighted_liveliness_score_decayed,
         true,
     )?;
 
     let weighted_liveliness_score_new = compute_weighted_liveliness_new(
         weighted_liveliness_score_decayed,
-        ctx.accounts.address_bonds.address_total_bond_amount,
+        ctx.accounts.address_bonds_rewards.address_total_bond_amount,
         weight_to_be_added,
         weight_to_be_subtracted,
         0,
         0,
     );
 
-    let address_bonds = &mut ctx.accounts.address_bonds;
+    let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
 
-    address_bonds.weighted_liveliness_score = weighted_liveliness_score_new;
-    address_bonds.last_update_timestamp = current_timestamp;
+    address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
+    address_bonds_rewards.last_update_timestamp = current_timestamp;
 
     bond.unbond_timestamp = current_timestamp + ctx.accounts.bond_config.lock_period;
     bond.bond_timestamp = current_timestamp;

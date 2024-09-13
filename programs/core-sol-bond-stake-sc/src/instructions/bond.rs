@@ -10,10 +10,9 @@ use spl_account_compression::program::SplAccountCompression;
 
 use crate::{
     compute_decay, compute_weighted_liveliness_decay, compute_weighted_liveliness_new,
-    get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards,
-    AssetUsage, Bond, BondConfig, Errors, RewardsConfig, State, VaultConfig, ADDRESS_BONDS_SEED,
-    ADDRESS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED,
-    VAULT_CONFIG_SEED,
+    get_current_timestamp, update_address_claimable_rewards, AddressBondsRewards, AssetUsage, Bond,
+    BondConfig, Errors, RewardsConfig, State, VaultConfig, ADDRESS_BONDS_REWARDS_SEED,
+    BOND_CONFIG_SEED, BOND_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -21,17 +20,10 @@ use crate::{
 pub struct BondContext<'info> {
     #[account(
         mut,
-        seeds=[ADDRESS_BONDS_SEED.as_bytes(), authority.key().as_ref()],
-        bump=address_bonds.bump,
+        seeds=[ADDRESS_BONDS_REWARDS_SEED.as_bytes(), authority.key().as_ref()],
+        bump=address_bonds_rewards.bump,
     )]
-    pub address_bonds: Box<Account<'info, AddressBonds>>,
-
-    #[account(
-        mut,
-        seeds=[ADDRESS_REWARDS_SEED.as_bytes(), authority.key().as_ref()],
-        bump=address_rewards.bump,
-    )]
-    pub address_rewards: Box<Account<'info, AddressRewards>>,
+    pub address_bonds_rewards: Box<Account<'info, AddressBondsRewards>>,
 
     #[account(
         init,
@@ -45,7 +37,7 @@ pub struct BondContext<'info> {
     #[account(
         init,
         payer = authority,
-        constraint=address_bonds.current_index + 1 == bond_id  @ Errors::WrongBondId,
+        constraint=address_bonds_rewards.current_index + 1 == bond_id  @ Errors::WrongBondId,
         seeds = [
             BOND_SEED.as_bytes(),
             authority.key().as_ref(),
@@ -91,8 +83,7 @@ pub struct BondContext<'info> {
 
     #[account(
         mut,
-        constraint=address_bonds.address == authority.key() @ Errors::OwnerMismatch,
-        constraint=address_rewards.address==authority.key() @Errors::OwnerMismatch,
+        constraint=address_bonds_rewards.address == authority.key() @ Errors::OwnerMismatch,
     )]
     pub authority: Signer<'info>,
 
@@ -140,38 +131,37 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     let bond_to_be_added = amount;
 
     let decay = compute_decay(
-        ctx.accounts.address_bonds.last_update_timestamp,
+        ctx.accounts.address_bonds_rewards.last_update_timestamp,
         current_timestamp,
         ctx.accounts.bond_config.lock_period,
     );
 
     let weighted_liveliness_score_decayed = compute_weighted_liveliness_decay(
-        ctx.accounts.address_bonds.weighted_liveliness_score,
+        ctx.accounts.address_bonds_rewards.weighted_liveliness_score,
         decay,
     );
 
     update_address_claimable_rewards(
         &mut ctx.accounts.rewards_config,
         &mut ctx.accounts.vault_config,
-        &mut ctx.accounts.address_rewards,
-        &mut ctx.accounts.address_bonds,
+        &mut ctx.accounts.address_bonds_rewards,
         weighted_liveliness_score_decayed,
         true,
     )?;
 
     let weighted_liveliness_score_new = compute_weighted_liveliness_new(
         weighted_liveliness_score_decayed,
-        ctx.accounts.address_bonds.address_total_bond_amount,
+        ctx.accounts.address_bonds_rewards.address_total_bond_amount,
         weight_to_be_added,
         0,
         bond_to_be_added,
         0,
     );
 
-    let address_bonds = &mut ctx.accounts.address_bonds;
+    let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
 
-    address_bonds.weighted_liveliness_score = weighted_liveliness_score_new;
-    address_bonds.last_update_timestamp = current_timestamp;
+    address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
+    address_bonds_rewards.last_update_timestamp = current_timestamp;
 
     // check leaf owner here
     let asset_id = get_asset_id(&ctx.accounts.merkle_tree.key(), nonce);
@@ -221,8 +211,8 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
         ctx.accounts.mint_of_token_sent.decimals,
     )?;
 
-    address_bonds.address_total_bond_amount += amount;
-    address_bonds.current_index = bond_id;
+    address_bonds_rewards.address_total_bond_amount += amount;
+    address_bonds_rewards.current_index = bond_id;
     ctx.accounts.vault_config.total_bond_amount += amount;
 
     ctx.accounts.bond.set_inner(Bond {
