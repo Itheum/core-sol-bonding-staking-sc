@@ -138,7 +138,10 @@ pub fn compute_decay(last_update_timestamp: u64, current_timestamp: u64, lock_pe
 
 pub fn compute_weighted_liveliness_decay(weighted_liveliness_score: u64, decay: u64) -> u64 {
     let weighted_liveliness_score_decayed = weighted_liveliness_score
-        .mul_div_floor(1 * DIVISION_SAFETY_CONST - decay, DIVISION_SAFETY_CONST)
+        .mul_div_floor(
+            1 * DIVISION_SAFETY_CONST.saturating_sub(decay),
+            DIVISION_SAFETY_CONST,
+        )
         .unwrap();
 
     weighted_liveliness_score_decayed
