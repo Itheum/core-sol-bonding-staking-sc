@@ -6,9 +6,10 @@ use anchor_spl::{
 
 use crate::{
     compute_decay, compute_weighted_liveliness_decay, compute_weighted_liveliness_new,
-    get_current_timestamp, update_address_claimable_rewards, AddressBondsRewards, BondConfig,
-    Errors, RewardsConfig, VaultConfig, ADDRESS_BONDS_REWARDS_SEED, BOND_CONFIG_SEED,
-    REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
+    full_math::MulDiv, get_current_timestamp, update_address_claimable_rewards,
+    AddressBondsRewards, BondConfig, Errors, RewardsConfig, VaultConfig,
+    ADDRESS_BONDS_REWARDS_SEED, BOND_CONFIG_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED,
+    VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -107,8 +108,6 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
         &mut ctx.accounts.rewards_config,
         &ctx.accounts.vault_config,
         &mut ctx.accounts.address_bonds_rewards,
-        weighted_liveliness_score_decayed,
-        false,
     )?;
 
     require!(
@@ -117,6 +116,17 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
     );
 
     let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
+
+    let actual_claimable_amount;
+
+    if weighted_liveliness_score_decayed >= 95_00u64 {
+        actual_claimable_amount = address_bonds_rewards.claimable_amount;
+    } else {
+        actual_claimable_amount = address_bonds_rewards
+            .claimable_amount
+            .mul_div_floor(weighted_liveliness_score_decayed, MAX_PERCENT)
+            .unwrap();
+    }
 
     address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
     address_bonds_rewards.last_update_timestamp = current_timestamp;
@@ -133,7 +143,7 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
 
     transfer_checked(
         cpi_ctx,
-        address_bonds_rewards.claimable_amount,
+        actual_claimable_amount,
         ctx.accounts.mint_of_token_to_receive.decimals,
     )?;
 

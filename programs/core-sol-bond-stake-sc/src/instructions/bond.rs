@@ -145,8 +145,6 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
         &mut ctx.accounts.rewards_config,
         &mut ctx.accounts.vault_config,
         &mut ctx.accounts.address_bonds_rewards,
-        weighted_liveliness_score_decayed,
-        true,
     )?;
 
     let weighted_liveliness_score_new = compute_weighted_liveliness_new(

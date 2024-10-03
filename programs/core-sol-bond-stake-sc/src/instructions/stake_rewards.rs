@@ -81,8 +81,6 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
         &mut ctx.accounts.rewards_config,
         &mut ctx.accounts.vault_config,
         &mut ctx.accounts.address_bonds_rewards,
-        weighted_liveliness_score_decayed,
-        false,
     )?;
 
     let current_timestamp = get_current_timestamp()?;
@@ -105,12 +103,23 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
     };
     let bond_to_be_subtracted = bond.bond_amount;
 
+    let actual_claimable_amount;
+
+    if weighted_liveliness_score_decayed >= 95_00u64 {
+        actual_claimable_amount = address_bonds_rewards.claimable_amount;
+    } else {
+        actual_claimable_amount = address_bonds_rewards
+            .claimable_amount
+            .mul_div_floor(weighted_liveliness_score_decayed, MAX_PERCENT)
+            .unwrap();
+    }
+
     bond.unbond_timestamp = current_timestamp + ctx.accounts.bond_config.lock_period;
     bond.bond_timestamp = current_timestamp;
-    bond.bond_amount += &address_bonds_rewards.claimable_amount;
+    bond.bond_amount += &actual_claimable_amount;
 
-    address_bonds_rewards.address_total_bond_amount += address_bonds_rewards.claimable_amount;
-    vault_config.total_bond_amount += &address_bonds_rewards.claimable_amount;
+    address_bonds_rewards.address_total_bond_amount += actual_claimable_amount;
+    vault_config.total_bond_amount += &actual_claimable_amount;
 
     address_bonds_rewards.claimable_amount = 0;
 

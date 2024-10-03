@@ -73,8 +73,6 @@ pub fn calculate_address_share_in_rewards(
     address_bond_amount: u64,
     address_rewards_per_share: u64,
     total_bond_amount: u64,
-    liveliness_score: u64,
-    bypass_liveliness_score: bool,
 ) -> u64 {
     if total_bond_amount == 0 {
         return 0;
@@ -90,29 +88,15 @@ pub fn calculate_address_share_in_rewards(
         .mul_div_floor(diff, DIVISION_SAFETY_CONST)
         .unwrap();
 
-    if liveliness_score >= 95_00u64 || bypass_liveliness_score {
-        address_rewards
-    } else {
-        address_rewards
-            .mul_div_floor(liveliness_score, MAX_PERCENT)
-            .unwrap()
-    }
+    address_rewards
 }
 
 pub fn update_address_claimable_rewards<'info>(
     rewards_config: &mut Account<'info, RewardsConfig>,
     vault_config: &Account<'info, VaultConfig>,
     address_bonds_rewards: &mut Account<'info, AddressBondsRewards>,
-    weighted_liveliness_score_decayed: u64,
-    bypass_liveliness_score: bool,
 ) -> Result<()> {
     generate_aggregated_rewards(rewards_config, vault_config)?;
-
-    let mut liveliness_score = 0u64;
-
-    if !bypass_liveliness_score {
-        liveliness_score = weighted_liveliness_score_decayed;
-    }
 
     let address_claimable_rewards = calculate_address_share_in_rewards(
         rewards_config.accumulated_rewards,
@@ -120,8 +104,6 @@ pub fn update_address_claimable_rewards<'info>(
         address_bonds_rewards.address_total_bond_amount,
         address_bonds_rewards.address_rewards_per_share,
         vault_config.total_bond_amount,
-        liveliness_score,
-        bypass_liveliness_score,
     );
 
     address_bonds_rewards.address_rewards_per_share = rewards_config.rewards_per_share;

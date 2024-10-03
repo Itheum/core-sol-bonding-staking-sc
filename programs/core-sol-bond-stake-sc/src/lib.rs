@@ -13,7 +13,7 @@ use constants::*;
 mod errors;
 use errors::*;
 
-declare_id!("4V8Luy9PjMdzF5VzNLGKH5uxXUXeBFooayEHXBGpXnxo");
+declare_id!("4zAKaiW68x31n7mRbYQBUgTC9BWL3q4uATjuBc5txYSN");
 
 #[program]
 pub mod core_sol_bond_stake_sc {
