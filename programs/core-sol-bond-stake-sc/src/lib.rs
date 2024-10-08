@@ -136,13 +136,11 @@ pub mod core_sol_bond_stake_sc {
         _bond_config_index: u8,
         bond_id: u8,
         amount: u64,
-        asset_id: Pubkey,
+        nonce: u64,
         is_vault: bool,
         root: [u8; 32],
         data_hash: [u8; 32],
         creator_hash: [u8; 32],
-        nonce: u64,
-        index: u32,
     ) -> Result<()> {
         require!(
             ctx.accounts.bond_config.bond_state == State::Active.to_code(),
@@ -152,13 +150,11 @@ pub mod core_sol_bond_stake_sc {
             ctx,
             bond_id,
             amount,
-            asset_id,
+            nonce,
             is_vault,
             root,
             data_hash,
             creator_hash,
-            nonce,
-            index,
         )
     }
 

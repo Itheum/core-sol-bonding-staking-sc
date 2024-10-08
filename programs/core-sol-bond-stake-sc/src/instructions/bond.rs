@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[derive(Accounts)]
-#[instruction(bond_config_index: u8, bond_id:u8, amount: u64, asset_id:Pubkey)]
+#[instruction(bond_config_index: u8, bond_id:u8, amount: u64,nonce: u64)]
 pub struct BondContext<'info> {
     #[account(
         mut,
@@ -28,7 +28,7 @@ pub struct BondContext<'info> {
     #[account(
         init,
         payer=authority,
-        seeds=[asset_id.as_ref()],
+        seeds=[get_asset_id(&merkle_tree.key(), nonce).as_ref()],
         bump,
         space=AssetUsage::INIT_SPACE
     )]
@@ -112,13 +112,11 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BondContext<'info>>,
     bond_id: u8,
     amount: u64,
-    _asset_id: Pubkey,
+    nonce: u64,
     is_vault: bool,
     root: [u8; 32],
     data_hash: [u8; 32],
     creator_hash: [u8; 32],
-    nonce: u64,
-    index: u32,
 ) -> Result<()> {
     require!(
         ctx.accounts.bond_config.bond_amount == amount,
@@ -164,8 +162,6 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     // check leaf owner here
     let asset_id = get_asset_id(&ctx.accounts.merkle_tree.key(), nonce);
 
-    require!(asset_id == _asset_id, Errors::AssetIdMismatch);
-
     let leaf = LeafSchema::V1 {
         id: asset_id,
         owner: ctx.accounts.authority.key(),
@@ -182,7 +178,7 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     )
     .with_remaining_accounts(ctx.remaining_accounts.to_vec());
 
-    spl_account_compression::cpi::verify_leaf(cpi_ctx, root, leaf.hash(), index)?;
+    spl_account_compression::cpi::verify_leaf(cpi_ctx, root, leaf.hash(), nonce as u32)?;
 
     let current_timestamp = get_current_timestamp()?;
 
