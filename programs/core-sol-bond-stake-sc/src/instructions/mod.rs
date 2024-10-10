@@ -13,3 +13,5 @@ pub mod stake_rewards;
 pub use stake_rewards::*;
 pub mod claim_rewards;
 pub use claim_rewards::*;
+pub mod initialize_address;
+pub use initialize_address::*;

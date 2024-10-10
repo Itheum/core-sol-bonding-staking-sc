@@ -8,3 +8,5 @@ pub mod create_bond_config;
 pub use create_bond_config::*;
 pub mod rewards;
 pub use rewards::*;
+pub mod initalize_vault;
+pub use initalize_vault::*;
