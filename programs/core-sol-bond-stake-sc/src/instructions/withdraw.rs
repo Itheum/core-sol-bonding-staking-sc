@@ -179,7 +179,7 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
         ctx.accounts.mint_of_token_to_receive.decimals,
     )?;
 
-    ctx.accounts.address_bonds_rewards.address_total_bond_amount -= bond.bond_amount;
+    address_bonds_rewards.address_total_bond_amount -= bond.bond_amount;
 
     bond.state = State::Inactive.to_code();
     bond.unbond_timestamp = current_timestamp;
