@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::{
     compute_decay, compute_weighted_liveliness_decay, compute_weighted_liveliness_new,
     full_math::MulDiv, get_current_timestamp, update_address_claimable_rewards,
-    AddressBondsRewards, Bond, BondConfig, Errors, RewardsConfig, VaultConfig,
+    AddressBondsRewards, Bond, BondConfig, Errors, RewardsConfig, State, VaultConfig,
     ADDRESS_BONDS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED,
     VAULT_CONFIG_SEED,
 };
@@ -63,6 +63,11 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, StakeRewards<'info>>,
 ) -> Result<()> {
     require!(ctx.accounts.bond.is_vault, Errors::BondIsNotAVault);
+
+    require!(
+        ctx.accounts.bond.state == State::Active.to_code(),
+        Errors::BondIsInactive
+    );
 
     let current_timestamp = get_current_timestamp()?;
 
