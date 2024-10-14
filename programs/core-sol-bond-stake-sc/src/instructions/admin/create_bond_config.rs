@@ -25,7 +25,7 @@ pub struct CreateBondConfig<'info> {
     )]
     pub authority: Signer<'info>,
 
-    system_program: Program<'info, System>,
+    pub system_program: Program<'info, System>,
 }
 
 pub fn create_bond_config(
@@ -44,7 +44,7 @@ pub fn create_bond_config(
     bond_config.lock_period = lock_period;
     bond_config.bond_amount = bond_amount;
     bond_config.withdraw_penalty = withdraw_penalty;
-    bond_config.padding = [0; 128];
+    // bond_config.padding = [0; 32];
 
     Ok(())
 }

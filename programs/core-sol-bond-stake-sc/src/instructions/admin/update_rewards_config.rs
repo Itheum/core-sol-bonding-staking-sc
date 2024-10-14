@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{RewardsConfig, ADMIN_PUBKEY, REWARDS_CONFIG_SEED};
+use crate::{get_current_slot, RewardsConfig, State, ADMIN_PUBKEY, REWARDS_CONFIG_SEED};
 
 #[derive(Accounts)]
 pub struct UpdateRewardsConfig<'info> {
@@ -21,6 +21,9 @@ pub struct UpdateRewardsConfig<'info> {
 pub fn update_rewards_state(ctx: Context<UpdateRewardsConfig>, state: u8) -> Result<()> {
     let rewards_config = &mut ctx.accounts.rewards_config;
     rewards_config.rewards_state = state;
+    if state == State::Active.to_code() {
+        rewards_config.last_reward_slot = get_current_slot()?;
+    }
     Ok(())
 }
 
