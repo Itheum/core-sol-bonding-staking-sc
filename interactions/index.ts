@@ -138,7 +138,7 @@ const initializeVault = async () => {
 
 const setBondStateActive = async () => {
   const tx = await program.methods
-    .setBondStateActive(1)
+    .setBondStateActive(1) // 1 is the Collection Config
     .signers([admin])
     .accounts({
       bondConfig: bondConfigPda1,
@@ -152,6 +152,23 @@ const setBondStateActive = async () => {
 };
 
 // setBondStateActive();
+
+const setBondStateInactive = async () => {
+  const tx = await program.methods
+    .setBondStateInactive(1) // 1 is the Collection Config
+    .signers([admin])
+    .accounts({
+      bondConfig: bondConfigPda1,
+      authority: admin.publicKey,
+    })
+    .transaction();
+
+  const transactionSignature = await connection.sendTransaction(tx, [admin]);
+
+  console.log(transactionSignature);
+};
+
+// setBondStateInactive();
 
 const addRewards = async (amount: anchor.BN) => {
   const vault_ata = await getAssociatedTokenAddress(
@@ -235,7 +252,24 @@ const setRewardsStateActive = async () => {
   console.log(transactionSignature);
 };
 
-setRewardsStateActive();
+// setRewardsStateActive();
+
+const setRewardsStateInactive = async () => {
+  const tx = await program.methods
+    .setRewardsStateInactive()
+    .signers([admin])
+    .accounts({
+      rewardsConfig: rewardsConfigPda,
+      authority: admin.publicKey,
+    })
+    .transaction();
+
+  const transactionSignature = await connection.sendTransaction(tx, [admin]);
+
+  console.log(transactionSignature);
+};
+
+// setRewardsStateInactive();
 
 // Below are some manual testing scripts.
 const object_response =
