@@ -5,9 +5,11 @@ use anchor_spl::{
 };
 
 use crate::{
-    get_current_timestamp, update_address_claimable_rewards, AddressBonds, AddressRewards, Bond,
-    BondConfig, Errors, RewardsConfig, State, VaultConfig, ADDRESS_BONDS_SEED, BOND_CONFIG_SEED,
-    BOND_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
+    compute_decay, compute_weighted_liveliness_decay, compute_weighted_liveliness_new,
+    full_math::MulDiv, get_current_timestamp, update_address_claimable_rewards,
+    AddressBondsRewards, Bond, BondConfig, Errors, RewardsConfig, State, VaultConfig,
+    ADDRESS_BONDS_REWARDS_SEED, BOND_CONFIG_SEED, BOND_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED,
+    VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
@@ -21,18 +23,10 @@ pub struct Withdraw<'info> {
 
     #[account(
         mut,
-        seeds=[ADDRESS_BONDS_SEED.as_bytes(), authority.key().as_ref()],
-        bump=address_bonds.bump,
+        seeds=[ADDRESS_BONDS_REWARDS_SEED.as_bytes(), authority.key().as_ref()],
+        bump=address_bonds_rewards.bump,
     )]
-    pub address_bonds: Account<'info, AddressBonds>,
-
-    #[account(
-        mut,
-        seeds=[ADDRESS_BONDS_SEED.as_bytes(), authority.key().as_ref()],
-        bump=address_rewards.bump,
-
-    )]
-    pub address_rewards: Account<'info, AddressRewards>,
+    pub address_bonds_rewards: Box<Account<'info, AddressBondsRewards>>,
 
     #[account(
         mut,
@@ -77,9 +71,8 @@ pub struct Withdraw<'info> {
 
     #[account(
         mut,
-        constraint=bond.owner == authority.key() @ Errors::WrongOwner,
-        constraint=address_bonds.address == authority.key() @ Errors::WrongOwner,
-        constraint=address_rewards.address==authority.key() @Errors::WrongOwner,
+        constraint=bond.owner == authority.key() @ Errors::OwnerMismatch,
+        constraint=address_bonds_rewards.address==authority.key() @Errors::OwnerMismatch,
     )]
     pub authority: Signer<'info>,
 
@@ -103,15 +96,6 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
         &[ctx.accounts.vault_config.bump],
     ]];
 
-    update_address_claimable_rewards(
-        &mut ctx.accounts.rewards_config,
-        &mut ctx.accounts.address_rewards,
-        &mut ctx.accounts.address_bonds,
-        ctx.remaining_accounts,
-        ctx.accounts.vault_config.total_bond_amount,
-        true,
-    )?;
-
     let bond_config = &ctx.accounts.bond_config;
     let vault_config = &mut ctx.accounts.vault_config;
 
@@ -121,10 +105,54 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
         bond.state == State::Active.to_code(),
         Errors::BondIsInactive
     );
+    let current_timestamp = get_current_timestamp()?;
+
+    let weight_to_be_subtracted = if current_timestamp < bond.unbond_timestamp {
+        bond.bond_amount
+            .mul_div_floor(
+                bond.unbond_timestamp - current_timestamp,
+                ctx.accounts.bond_config.lock_period,
+            )
+            .unwrap()
+            * MAX_PERCENT
+    } else {
+        0
+    };
+
+    let bond_amount_to_be_subtracted = bond.bond_amount;
+
+    let decay = compute_decay(
+        ctx.accounts.address_bonds_rewards.last_update_timestamp,
+        current_timestamp,
+        ctx.accounts.bond_config.lock_period,
+    );
+
+    let weighted_liveliness_score_decayed = compute_weighted_liveliness_decay(
+        ctx.accounts.address_bonds_rewards.weighted_liveliness_score,
+        decay,
+    );
+
+    update_address_claimable_rewards(
+        &mut ctx.accounts.rewards_config,
+        vault_config,
+        &mut ctx.accounts.address_bonds_rewards,
+    )?;
+
+    let weighted_liveliness_score_new = compute_weighted_liveliness_new(
+        weighted_liveliness_score_decayed,
+        ctx.accounts.address_bonds_rewards.address_total_bond_amount,
+        0,
+        weight_to_be_subtracted,
+        0,
+        bond_amount_to_be_subtracted,
+    );
+
+    let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
+
+    address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
+    address_bonds_rewards.last_update_timestamp = current_timestamp;
 
     let mut penalty = 0u64;
-
-    let current_timestamp = get_current_timestamp()?;
 
     if bond.unbond_timestamp >= current_timestamp {
         penalty = bond.bond_amount * bond_config.withdraw_penalty / MAX_PERCENT;
@@ -132,8 +160,6 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
 
     vault_config.total_penalized_amount += penalty;
     vault_config.total_bond_amount -= bond.bond_amount;
-
-    bond.state = State::Inactive.to_code();
 
     // transfer bond to authority
 
@@ -152,6 +178,12 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
         bond.bond_amount - penalty,
         ctx.accounts.mint_of_token_to_receive.decimals,
     )?;
+
+    address_bonds_rewards.address_total_bond_amount -= bond.bond_amount;
+
+    bond.state = State::Inactive.to_code();
+    bond.unbond_timestamp = current_timestamp;
+    bond.bond_amount = 0;
 
     Ok(())
 }

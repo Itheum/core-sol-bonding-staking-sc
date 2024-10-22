@@ -2,13 +2,16 @@ import * as anchor from '@coral-xyz/anchor'
 import {Program} from '@coral-xyz/anchor'
 import {CoreSolBondStakeSc} from '../target/types/core_sol_bond_stake_sc'
 import {
+  Connection,
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
   SystemProgram,
   Transaction,
+  TransactionSignature,
 } from '@solana/web3.js'
 import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
   createInitializeMint2Instruction,
   createMintToInstruction,
@@ -24,9 +27,14 @@ import {
 } from '@metaplex-foundation/umi'
 import {
   createTree,
+  getAssetWithProof,
+  getCurrentRoot,
+  LeafSchema,
   MetadataArgsArgs,
   mintToCollectionV1,
   mplBubblegum,
+  parseLeafFromMintToCollectionV1Transaction,
+  SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
 } from '@metaplex-foundation/mpl-bubblegum'
 import {assert, expect} from 'chai'
 import {
@@ -35,9 +43,11 @@ import {
 } from '@metaplex-foundation/mpl-token-metadata'
 import {
   fromWeb3JsKeypair,
+  fromWeb3JsPublicKey,
   toWeb3JsPublicKey,
 } from '@metaplex-foundation/umi-web3js-adapters'
 import {createUmi} from '@metaplex-foundation/umi-bundle-defaults'
+import {bs58} from '@coral-xyz/anchor/dist/cjs/utils/bytes'
 
 require('dotenv').config()
 
@@ -45,9 +55,7 @@ describe('core-sol-bond-stake-sc', () => {
   anchor.setProvider(anchor.AnchorProvider.env())
 
   const provider = anchor.getProvider()
-
   const connection = provider.connection
-
   const program = anchor.workspace
     .CoreSolBondStakeSc as Program<CoreSolBondStakeSc>
 
@@ -60,8 +68,9 @@ describe('core-sol-bond-stake-sc', () => {
   )
 
   let collection_mint: PublicKey
-  let user_nft_mint: PublicKey
-  let user2_nft_mint: PublicKey
+  let user_nft_leaf_schemas: LeafSchema[] = []
+  let user2_nft_leaf_schemas: LeafSchema[] = []
+  let merkleTree: PublicKey
 
   const itheum_token_user_ata = getAssociatedTokenAddressSync(
     itheum_token_mint.publicKey,
@@ -118,6 +127,8 @@ describe('core-sol-bond-stake-sc', () => {
     vaultConfigPda,
     true
   )
+
+  let activation_slot: number = 0
 
   const confirm = async (signature: string): Promise<string> => {
     const block = await connection.getLatestBlockhash()
@@ -212,7 +223,9 @@ describe('core-sol-bond-stake-sc', () => {
 
     await provider.sendAndConfirm(tx, [admin])
 
-    const umi = createUmi(connection)
+    let umiConnection = new Connection('http://localhost:8899', 'confirmed')
+
+    const umi = createUmi(umiConnection)
     umi.use(mplTokenMetadata())
 
     umi.use(keypairIdentity(fromWeb3JsKeypair(admin)))
@@ -229,18 +242,20 @@ describe('core-sol-bond-stake-sc', () => {
       isCollection: true,
     }).sendAndConfirm(umi)
 
-    const umi2 = createUmi(connection)
+    const umi2 = createUmi(umiConnection)
 
     umi2.use(keypairIdentity(fromWeb3JsKeypair(admin)))
     umi2.use(mplBubblegum())
 
-    const merkleTree = generateSigner(umi2)
+    const merkleTreeKey = generateSigner(umi2)
     const builder = await createTree(umi2, {
-      merkleTree,
+      merkleTree: merkleTreeKey,
       maxDepth: 14,
       maxBufferSize: 64,
     })
     await builder.sendAndConfirm(umi2)
+
+    merkleTree = toWeb3JsPublicKey(merkleTreeKey.publicKey)
 
     const metadata: MetadataArgsArgs = {
       name: 'Vault NFMEID user1',
@@ -270,26 +285,37 @@ describe('core-sol-bond-stake-sc', () => {
       ],
     }
 
-    const nft_mint1 = generateSigner(umi2)
+    for (let i = 0; i < 5; i++) {
+      const resp = await mintToCollectionV1(umi2, {
+        leafOwner: fromWeb3JsKeypair(user).publicKey,
+        merkleTree: fromWeb3JsPublicKey(merkleTree),
+        collectionMint: collection.publicKey,
+        metadata: metadata,
+      }).sendAndConfirm(umi2)
 
-    user_nft_mint = toWeb3JsPublicKey(nft_mint1.publicKey)
+      let nft_leaf_schema = await parseLeafFromMintToCollectionV1Transaction(
+        umi2,
+        resp.signature
+      )
 
-    const resp3 = await mintToCollectionV1(umi2, {
-      leafOwner: fromWeb3JsKeypair(user).publicKey,
-      merkleTree: merkleTree.publicKey,
-      collectionMint: collection.publicKey,
-      metadata: metadata,
-    }).sendAndConfirm(umi2)
+      user_nft_leaf_schemas.push(nft_leaf_schema)
+    }
 
-    const nft_mint_2 = generateSigner(umi2)
-    const resp4 = await mintToCollectionV1(umi2, {
-      leafOwner: fromWeb3JsKeypair(user2).publicKey,
-      merkleTree: merkleTree.publicKey,
-      collectionMint: collection.publicKey,
-      metadata: metadata2,
-    }).sendAndConfirm(umi2)
+    for (let i = 0; i < 5; i++) {
+      const resp4 = await mintToCollectionV1(umi2, {
+        leafOwner: fromWeb3JsKeypair(user2).publicKey,
+        merkleTree: fromWeb3JsPublicKey(merkleTree),
+        collectionMint: collection.publicKey,
+        metadata: metadata2,
+      }).sendAndConfirm(umi2)
 
-    user2_nft_mint = toWeb3JsPublicKey(nft_mint_2.publicKey)
+      let nft2_leaf_schema = await parseLeafFromMintToCollectionV1Transaction(
+        umi2,
+        resp4.signature
+      )
+
+      user2_nft_leaf_schemas.push(nft2_leaf_schema)
+    }
   })
 
   it('Initialize contract - by user (should fail)', async () => {
@@ -304,12 +330,9 @@ describe('core-sol-bond-stake-sc', () => {
           new anchor.BN(6000)
         )
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda1,
-          vaultConfig: vaultConfigPda,
-          vault: vault_ata,
-          mintOfToken: itheum_token_mint.publicKey,
-          mintOfCollection: collection_mint,
+          merkleTree: merkleTree,
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
@@ -324,7 +347,7 @@ describe('core-sol-bond-stake-sc', () => {
   })
 
   it('Initialize Contract by admin', async () => {
-    await program.methods
+    const sig = await program.methods
       .initializeContract(
         1,
         new anchor.BN(900),
@@ -334,13 +357,21 @@ describe('core-sol-bond-stake-sc', () => {
         new anchor.BN(6000)
       )
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        merkleTree: merkleTree,
+        authority: admin.publicKey,
+      })
+      .rpc()
+
+    await program.methods
+      .initializeVault()
+      .signers([admin])
+      .accounts({
         vaultConfig: vaultConfigPda,
         vault: vault_ata,
         mintOfToken: itheum_token_mint.publicKey,
-        mintOfCollection: collection_mint,
-        rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
       .rpc()
@@ -354,7 +385,7 @@ describe('core-sol-bond-stake-sc', () => {
     assert(bond_config.bondAmount.eq(new anchor.BN(100e9)))
     assert(bond_config.bondState == 0)
     assert(bond_config.lockPeriod.eq(new anchor.BN(900)))
-    assert(bond_config.mintOfCollection.equals(collection_mint))
+    assert(bond_config.merkleTree.equals(merkleTree))
     assert(bond_config.withdrawPenalty.eq(new anchor.BN(6000)))
     assert(bond_config.index == 1)
 
@@ -383,10 +414,10 @@ describe('core-sol-bond-stake-sc', () => {
           new anchor.BN(6000)
         )
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
-          mintOfCollection: collection_mint,
+          merkleTree: merkleTree,
         })
         .rpc()
       assert(false, 'Should have thrown error')
@@ -412,10 +443,10 @@ describe('core-sol-bond-stake-sc', () => {
         new anchor.BN(6000)
       )
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
-        mintOfCollection: collection_mint,
+        merkleTree: merkleTree,
       })
       .rpc()
 
@@ -424,7 +455,7 @@ describe('core-sol-bond-stake-sc', () => {
     assert(bond_config.bondAmount.eq(new anchor.BN(100e9)))
     assert(bond_config.bondState == 0)
     assert(bond_config.lockPeriod.eq(new anchor.BN(900)))
-    assert(bond_config.mintOfCollection.equals(collection_mint))
+    assert(bond_config.merkleTree.equals(merkleTree))
     assert(bond_config.withdrawPenalty.eq(new anchor.BN(6000)))
     assert(bond_config.index == 2)
   })
@@ -434,7 +465,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .setBondStateActive(1)
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
@@ -450,7 +481,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .setBondStateInactive(1)
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
@@ -471,7 +502,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .setBondStateActive(2)
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
@@ -487,7 +518,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .setBondStateInactive(2)
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
@@ -504,7 +535,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .setBondStateActive(1)
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
@@ -522,7 +553,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .setBondStateActive(2)
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
@@ -537,7 +568,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .setBondStateInactive(1)
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
@@ -550,7 +581,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .setBondStateInactive(2)
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
@@ -564,9 +595,9 @@ describe('core-sol-bond-stake-sc', () => {
   it('Update mint of collection by user (should fail)', async () => {
     try {
       await program.methods
-        .updateMintOfCollection(1, collection_mint)
+        .updateMerkleTree(1, merkleTree)
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
@@ -586,9 +617,9 @@ describe('core-sol-bond-stake-sc', () => {
 
     try {
       await program.methods
-        .updateMintOfCollection(2, collection_mint)
+        .updateMerkleTree(2, merkleTree)
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
@@ -604,9 +635,9 @@ describe('core-sol-bond-stake-sc', () => {
 
   it('Update mint of collection by admin', async () => {
     await program.methods
-      .updateMintOfCollection(1, collection_mint)
+      .updateMerkleTree(1, merkleTree)
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
@@ -614,7 +645,7 @@ describe('core-sol-bond-stake-sc', () => {
 
     let bond_config = await program.account.bondConfig.fetch(bondConfigPda1)
 
-    assert(bond_config.mintOfCollection.equals(collection_mint))
+    assert(bond_config.merkleTree.equals(merkleTree))
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
       [Buffer.from('bond_config'), Buffer.from([2])],
@@ -622,9 +653,9 @@ describe('core-sol-bond-stake-sc', () => {
     )[0]
 
     await program.methods
-      .updateMintOfCollection(2, collection_mint)
+      .updateMerkleTree(2, merkleTree)
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
@@ -632,7 +663,7 @@ describe('core-sol-bond-stake-sc', () => {
 
     let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2)
 
-    assert(bond_config2.mintOfCollection.equals(collection_mint))
+    assert(bond_config2.merkleTree.equals(merkleTree))
   })
 
   it('Update lock period by user (should fail)', async () => {
@@ -640,7 +671,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .updateLockPeriod(1, new anchor.BN(1000))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
@@ -662,7 +693,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .updateLockPeriod(2, new anchor.BN(1000))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
@@ -680,7 +711,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .updateLockPeriod(1, new anchor.BN(1000))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
@@ -698,7 +729,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .updateLockPeriod(2, new anchor.BN(1000))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
@@ -714,7 +745,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .updateBondAmount(1, new anchor.BN(200e9))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
@@ -736,7 +767,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .updateBondAmount(2, new anchor.BN(200e9))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
@@ -754,7 +785,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .updateBondAmount(1, new anchor.BN(200e9))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
@@ -772,7 +803,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .updateBondAmount(2, new anchor.BN(200e9))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
@@ -781,6 +812,15 @@ describe('core-sol-bond-stake-sc', () => {
     let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2)
 
     assert(bond_config2.bondAmount.eq(new anchor.BN(200e9)))
+
+    await program.methods
+      .updateBondAmount(1, new anchor.BN(100e9))
+      .signers([admin])
+      .accounts({
+        bondConfig: bondConfigPda1,
+        authority: admin.publicKey,
+      })
+      .rpc()
   })
 
   it('Update withdraw penalty by user (should fail)', async () => {
@@ -788,7 +828,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .updateWithdrawPenalty(1, new anchor.BN(5000))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
@@ -810,7 +850,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .updateWithdrawPenalty(2, new anchor.BN(5000))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
@@ -828,7 +868,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .updateWithdrawPenalty(1, new anchor.BN(5000))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
@@ -846,7 +886,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .updateWithdrawPenalty(2, new anchor.BN(5000))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
@@ -864,7 +904,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .setRewardsStateActive()
         .signers([user])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
@@ -880,7 +920,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .setRewardsStateInactive()
         .signers([user])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
@@ -897,7 +937,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .setRewardsStateActive()
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
@@ -912,7 +952,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .setRewardsStateInactive()
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
@@ -930,7 +970,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .updateRewardsPerSlot(new anchor.BN(2e9))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
@@ -948,7 +988,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .updateRewardsPerSlot(new anchor.BN(2e9))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
@@ -966,7 +1006,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .updateMaxApr(new anchor.BN(10))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
@@ -984,7 +1024,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .updateMaxApr(new anchor.BN(10))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
@@ -1002,7 +1042,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .addRewards(new anchor.BN(1000e9))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           vaultConfig: vaultConfigPda,
           vault: vault_ata,
@@ -1023,7 +1063,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .addRewards(new anchor.BN(1_000_000e9))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         rewardsConfig: rewardsConfigPda,
         vaultConfig: vaultConfigPda,
         vault: vault_ata,
@@ -1045,7 +1085,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .removeRewards(new anchor.BN(1000e9))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           vaultConfig: vaultConfigPda,
           vault: vault_ata,
@@ -1065,7 +1105,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .removeRewards(new anchor.BN(1000e9))
         .signers([user])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           vaultConfig: vaultConfigPda,
           vault: vault_ata,
@@ -1086,7 +1126,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .removeRewards(new anchor.BN(1000e9))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         rewardsConfig: rewardsConfigPda,
         vaultConfig: vaultConfigPda,
         vault: vault_ata,
@@ -1105,7 +1145,7 @@ describe('core-sol-bond-stake-sc', () => {
     await program.methods
       .addRewards(new anchor.BN(1_000e9))
       .signers([admin])
-      .accountsPartial({
+      .accounts({
         rewardsConfig: rewardsConfigPda,
         vaultConfig: vaultConfigPda,
         vault: vault_ata,
@@ -1127,7 +1167,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .removeRewards(new anchor.BN(1000e9))
         .signers([admin])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           vaultConfig: vaultConfigPda,
           vault: vault_ata,
@@ -1149,7 +1189,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .removeRewards(new anchor.BN(1000e9))
         .signers([admin])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           vaultConfig: vaultConfigPda,
           vault: vault_ata,
@@ -1171,7 +1211,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .removeRewards(new anchor.BN(1000e9))
         .signers([admin])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           vaultConfig: vaultConfigPda,
           vault: vault_ata,
@@ -1193,7 +1233,7 @@ describe('core-sol-bond-stake-sc', () => {
       await program.methods
         .removeRewards(new anchor.BN(1000e9))
         .signers([admin])
-        .accountsPartial({
+        .accounts({
           rewardsConfig: rewardsConfigPda,
           vaultConfig: vaultConfigPda,
           vault: itheum_token_admin_ata,
@@ -1210,20 +1250,1388 @@ describe('core-sol-bond-stake-sc', () => {
     }
   })
 
-  it('Activate rewards by admin', async () => {
+  it('Bond 1 by user - should fail (address not initialized)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    const assetUsage1 = PublicKey.findProgramAddressSync(
+      [toWeb3JsPublicKey(user_nft_leaf_schemas[0].id).toBuffer()],
+      program.programId
+    )[0]
+
+    try {
+      await program.methods
+        .bond(
+          1,
+          1,
+          new anchor.BN(100e9),
+          toWeb3JsPublicKey(user_nft_leaf_schemas[0].id),
+          false,
+          Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
+          Array.from(user_nft_leaf_schemas[0].dataHash),
+          Array.from(user_nft_leaf_schemas[0].creatorHash),
+          new anchor.BN(user_nft_leaf_schemas[0].nonce.toString()),
+          1
+        )
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          assetUsage: assetUsage1,
+          bond: bond1,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          mintOfTokenSent: itheum_token_mint.publicKey,
+          authority: user.publicKey,
+          merkleTree: merkleTree,
+          authorityTokenAccount: itheum_token_user_ata,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+        })
+        .remainingAccounts([
+          {
+            pubkey: new PublicKey(merkleTree),
+            isSigner: false,
+            isWritable: false,
+          },
+        ])
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(3012)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'The program expected this account to be already initialized'
+      )
+    }
+  })
+
+  it('Unpause bond program', async () => {
     await program.methods
-      .setRewardsStateActive()
+      .setBondStateActive(1)
       .signers([admin])
-      .accountsPartial({
+      .accounts({bondConfig: bondConfigPda1, authority: admin.publicKey})
+      .rpc()
+  })
+
+  it('Bond 1 by user - wrong bond amount (should fail)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    const assetUsage1 = PublicKey.findProgramAddressSync(
+      [toWeb3JsPublicKey(user_nft_leaf_schemas[0].id).toBuffer()],
+      program.programId
+    )[0]
+
+    await program.methods
+      .initializeAddress()
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        rewardsConfig: rewardsConfigPda,
+        authority: user.publicKey,
+      })
+      .rpc()
+
+    try {
+      await program.methods
+        .bond(
+          1,
+          1,
+          new anchor.BN(200e9),
+          toWeb3JsPublicKey(user_nft_leaf_schemas[0].id),
+          false,
+          Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
+          Array.from(user_nft_leaf_schemas[0].dataHash),
+          Array.from(user_nft_leaf_schemas[0].creatorHash),
+          new anchor.BN(user_nft_leaf_schemas[0].nonce.toString()),
+          1
+        )
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          assetUsage: assetUsage1,
+          bond: bond1,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          mintOfTokenSent: itheum_token_mint.publicKey,
+          authority: user.publicKey,
+          merkleTree: merkleTree,
+          authorityTokenAccount: itheum_token_user_ata,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+        })
+        .remainingAccounts([
+          {
+            pubkey: new PublicKey(merkleTree),
+            isSigner: false,
+            isWritable: false,
+          },
+        ])
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6010)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'Wrong amount'
+      )
+    }
+  })
+
+  it('Bond 1 by user - wrong bond id (should fail)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([2])],
+      program.programId
+    )[0]
+
+    const assetUsage1 = PublicKey.findProgramAddressSync(
+      [toWeb3JsPublicKey(user_nft_leaf_schemas[0].id).toBuffer()],
+      program.programId
+    )[0]
+
+    try {
+      await program.methods
+        .bond(
+          1,
+          2,
+          new anchor.BN(100e9),
+          toWeb3JsPublicKey(user_nft_leaf_schemas[0].id),
+          false,
+          Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
+          Array.from(user_nft_leaf_schemas[0].dataHash),
+          Array.from(user_nft_leaf_schemas[0].creatorHash),
+          new anchor.BN(user_nft_leaf_schemas[0].nonce.toString()),
+          1
+        )
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          assetUsage: assetUsage1,
+          bond: bond1,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          mintOfTokenSent: itheum_token_mint.publicKey,
+          authority: user.publicKey,
+          merkleTree: merkleTree,
+          authorityTokenAccount: itheum_token_user_ata,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+        })
+        .remainingAccounts([
+          {
+            pubkey: new PublicKey(merkleTree),
+            isSigner: false,
+            isWritable: false,
+          },
+        ])
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6011)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'Wrong bond id'
+      )
+    }
+  })
+
+  it('Bond 1 by user', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    const assetUsage1 = PublicKey.findProgramAddressSync(
+      [toWeb3JsPublicKey(user_nft_leaf_schemas[0].id).toBuffer()],
+      program.programId
+    )[0]
+
+    let x = await program.methods
+      .bond(
+        1,
+        1,
+        new anchor.BN(100e9),
+        toWeb3JsPublicKey(user_nft_leaf_schemas[0].id),
+        true,
+        Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
+        Array.from(user_nft_leaf_schemas[0].dataHash),
+        Array.from(user_nft_leaf_schemas[0].creatorHash),
+        new anchor.BN(user_nft_leaf_schemas[0].nonce.toString()),
+        1
+      )
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        assetUsage: assetUsage1,
+        bond: bond1,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        mintOfTokenSent: itheum_token_mint.publicKey,
+        authority: user.publicKey,
+        merkleTree: merkleTree,
+        authorityTokenAccount: itheum_token_user_ata,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+      })
+      .remainingAccounts([
+        {
+          pubkey: new PublicKey(merkleTree),
+          isSigner: false,
+          isWritable: false,
+        },
+      ])
+      .rpc()
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    )
+  })
+
+  it('Bond 2 by user', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond2 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([2])],
+      program.programId
+    )[0]
+
+    const assetUsage2 = PublicKey.findProgramAddressSync(
+      [toWeb3JsPublicKey(user_nft_leaf_schemas[1].id).toBuffer()],
+      program.programId
+    )[0]
+
+    let x = await program.methods
+      .bond(
+        1,
+        2,
+        new anchor.BN(100e9),
+        toWeb3JsPublicKey(user_nft_leaf_schemas[1].id),
+        false,
+        Array.from(bs58.decode(user_nft_leaf_schemas[1].id)),
+        Array.from(user_nft_leaf_schemas[1].dataHash),
+        Array.from(user_nft_leaf_schemas[1].creatorHash),
+        new anchor.BN(user_nft_leaf_schemas[1].nonce.toString()),
+        1
+      )
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        assetUsage: assetUsage2,
+        bond: bond2,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        mintOfTokenSent: itheum_token_mint.publicKey,
+        authority: user.publicKey,
+        merkleTree: merkleTree,
+        authorityTokenAccount: itheum_token_user_ata,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+      })
+      .remainingAccounts([
+        {
+          pubkey: new PublicKey(merkleTree),
+          isSigner: false,
+          isWritable: false,
+        },
+      ])
+      .rpc()
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    )
+  })
+
+  it('Bond 1 by user2', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    const assetUsage1 = PublicKey.findProgramAddressSync(
+      [toWeb3JsPublicKey(user2_nft_leaf_schemas[0].id).toBuffer()],
+      program.programId
+    )[0]
+
+    await program.methods
+      .initializeAddress()
+      .signers([user2])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        rewardsConfig: rewardsConfigPda,
+        authority: user2.publicKey,
+      })
+      .rpc()
+
+    let x = await program.methods
+      .bond(
+        1,
+        1,
+        new anchor.BN(100e9),
+        toWeb3JsPublicKey(user2_nft_leaf_schemas[0].id),
+        true,
+        Array.from(bs58.decode(user2_nft_leaf_schemas[0].id)),
+        Array.from(user2_nft_leaf_schemas[0].dataHash),
+        Array.from(user2_nft_leaf_schemas[0].creatorHash),
+        new anchor.BN(user2_nft_leaf_schemas[0].nonce.toString()),
+        1
+      )
+      .signers([user2])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        assetUsage: assetUsage1,
+        bond: bond1,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        mintOfTokenSent: itheum_token_mint.publicKey,
+        authority: user2.publicKey,
+        merkleTree: merkleTree,
+        authorityTokenAccount: itheum_token_user2_ata,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+      })
+      .remainingAccounts([
+        {
+          pubkey: new PublicKey(merkleTree),
+          isSigner: false,
+          isWritable: false,
+        },
+      ])
+      .rpc()
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    )
+  })
+
+  it('Renew bond 1 by user - wrong bond (should fail)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    try {
+      let x = await program.methods
+        .renew(1, 1)
+        .signers([user])
+        .accounts({
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          vaultConfig: vaultConfigPda,
+          addressBondsRewards: userBondsRewards,
+          bond: bond1,
+          authority: user.publicKey,
+        })
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2006)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'A seeds constraint was violated'
+      )
+    }
+  })
+
+  it('Renew bond 1 by user', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    let x = await program.methods
+      .renew(1, 1)
+      .signers([user])
+      .accounts({
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        addressBondsRewards: userBondsRewards,
+        bond: bond1,
+        authority: user.publicKey,
+      })
+      .rpc()
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    )
+  })
+
+  it('TopUp bond 2 by user - bond not vault (should fail)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond2 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([2])],
+      program.programId
+    )[0]
+
+    try {
+      let x = await program.methods
+        .topUp(1, 2, new anchor.BN(100e9))
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          mintOfTokenSent: itheum_token_mint.publicKey,
+          bond: bond2,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          authority: user.publicKey,
+          authorityTokenAccount: itheum_token_user_ata,
+        })
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6015)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'Bond is not a vault'
+      )
+    }
+  })
+  it('TopUp bond 1 by user - wrong mint of token (should fail)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    try {
+      let x = await program.methods
+        .topUp(1, 1, new anchor.BN(100e9))
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          mintOfTokenSent: another_token_mint.publicKey,
+          bond: bond1,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          authority: user.publicKey,
+          authorityTokenAccount: itheum_token_user_ata,
+        })
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6006)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'Mint mismatch'
+      )
+    }
+  })
+
+  it('TopUp bond 1 by user - wrong user accounts (should fail)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    try {
+      let x = await program.methods
+        .topUp(1, 1, new anchor.BN(100e9))
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          mintOfTokenSent: itheum_token_mint.publicKey,
+          bond: bond1,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          authority: user.publicKey,
+          authorityTokenAccount: itheum_token_user_ata,
+        })
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2006)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'A seeds constraint was violated'
+      )
+    }
+  })
+
+  it('TopUp bond 1 by user', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    let x = await program.methods
+      .topUp(1, 1, new anchor.BN(100e9))
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        mintOfTokenSent: itheum_token_mint.publicKey,
+        bond: bond1,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        authority: user.publicKey,
+        authorityTokenAccount: itheum_token_user_ata,
+      })
+      .rpc()
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    )
+  })
+  it('Withdraw bond 1 by user', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    let x = await program.methods
+      .withdraw(1, 1)
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        mintOfTokenToReceive: itheum_token_mint.publicKey,
+        bond: bond1,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        authority: user.publicKey,
+        authorityTokenAccount: itheum_token_user_ata,
+      })
+      .rpc({skipPreflight: true})
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    const tolerance = normalWeighted * 0.001
+    const lowerBound = normalWeighted - tolerance
+    const upperBound = normalWeighted + tolerance
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
+        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
+      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    )
+  })
+
+  it('Withdraw bond 1 by user - already withdrawn (should fail)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    try {
+      await program.methods
+        .withdraw(1, 1)
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          mintOfTokenToReceive: itheum_token_mint.publicKey,
+          bond: bond1,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          authority: user.publicKey,
+          authorityTokenAccount: itheum_token_user_ata,
+        })
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6014)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'Bond is inactive'
+      )
+    }
+  })
+
+  it('Top up bond 1 by user - bond inactive (should fail)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    try {
+      await program.methods
+        .topUp(1, 1, new anchor.BN(100e9))
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          mintOfTokenSent: itheum_token_mint.publicKey,
+          bond: bond1,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          authority: user.publicKey,
+          authorityTokenAccount: itheum_token_user_ata,
+        })
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6014)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'Bond is inactive'
+      )
+    }
+  })
+  it('Renew bond 1 by user - bond inactive (should fail)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    try {
+      await program.methods
+        .renew(1, 1)
+        .signers([user])
+        .accounts({
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          vaultConfig: vaultConfigPda,
+          addressBondsRewards: userBondsRewards,
+          bond: bond1,
+          authority: user.publicKey,
+        })
+        .rpc()
+      assert(false, 'Should have thrown error')
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6014)
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        'Bond is inactive'
+      )
+    }
+  })
+
+  it('Update rewards per slot by admin', async () => {
+    await program.methods
+      .updateRewardsPerSlot(new anchor.BN(1e6))
+      .signers([admin])
+      .accounts({
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
       .rpc()
+  })
 
-    let rewards_config = await program.account.rewardsConfig.fetch(
+  it('Activate rewards by admin', async () => {
+    await program.methods
+      .updateMaxApr(new anchor.BN(0))
+      .signers([admin])
+      .accounts({rewardsConfig: rewardsConfigPda, authority: admin.publicKey})
+      .rpc()
+
+    let x = await program.methods
+      .setRewardsStateActive()
+      .signers([admin])
+      .accounts({rewardsConfig: rewardsConfigPda, authority: admin.publicKey})
+      .rpc()
+
+    let newConn = new Connection('http://localhost:8899', 'confirmed')
+
+    let sigStatus = await newConn.getSignatureStatus(x)
+
+    activation_slot = sigStatus.context.slot
+  })
+
+  it('Check user rewards - (renew bond 2 by user)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond2 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([2])],
+      program.programId
+    )[0]
+
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(userBondsRewards)
+
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    let x = await program.methods
+      .renew(1, 2)
+      .signers([user])
+      .accounts({
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        addressBondsRewards: userBondsRewards,
+        bond: bond2,
+        authority: user.publicKey,
+      })
+      .rpc({skipPreflight: true})
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    )
+
+    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
     )
 
-    assert(rewards_config.rewardsState == 1)
+    let total_rewards = await calculateTotalRewardsInInterval(
+      activation_slot,
+      rewardsConfigPda,
+      program
+    )
+
+    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    let user_rewards = await calculateUserRewards(
+      normalWeighted,
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      true,
+      program
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 ===
+        userRewardsAcc.claimableAmount.toNumber()
+    )
+
+    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards)
+  })
+
+  it('Check user2 rewards - (renew bond 1 by user2)', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(userBondsRewards)
+
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    let x = await program.methods
+      .renew(1, 1)
+      .signers([user2])
+      .accounts({
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        addressBondsRewards: userBondsRewards,
+        bond: bond1,
+        authority: user2.publicKey,
+      })
+      .rpc({skipPreflight: true})
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    )
+
+    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
+      rewardsConfigPda
+    )
+
+    let total_rewards = await calculateTotalRewardsInInterval(
+      activation_slot,
+      rewardsConfigPda,
+      program
+    )
+
+    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    let user_rewards = await calculateUserRewards(
+      normalWeighted,
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      true,
+      program
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 ===
+        userRewardsAcc.claimableAmount.toNumber()
+    )
+
+    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards)
+  })
+
+  it('Check user rewards - bond 3 by user', async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const assetUsage3 = PublicKey.findProgramAddressSync(
+      [toWeb3JsPublicKey(user_nft_leaf_schemas[2].id).toBuffer()],
+      program.programId
+    )[0]
+
+    const bond3 = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([3])],
+      program.programId
+    )[0]
+
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(userBondsRewards)
+
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    let x = await program.methods
+      .bond(
+        1,
+        3,
+        new anchor.BN(100e9),
+        toWeb3JsPublicKey(user_nft_leaf_schemas[2].id),
+        false,
+        Array.from(bs58.decode(user_nft_leaf_schemas[2].id)),
+        Array.from(user_nft_leaf_schemas[2].dataHash),
+        Array.from(user_nft_leaf_schemas[2].creatorHash),
+        new anchor.BN(user_nft_leaf_schemas[2].nonce.toString()),
+        1
+      )
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        assetUsage: assetUsage3,
+        bond: bond3,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        mintOfTokenSent: itheum_token_mint.publicKey,
+        authority: user.publicKey,
+        merkleTree: merkleTree,
+        authorityTokenAccount: itheum_token_user_ata,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+      })
+      .remainingAccounts([
+        {
+          pubkey: new PublicKey(merkleTree),
+          isSigner: false,
+          isWritable: false,
+        },
+      ])
+      .rpc()
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    const tolerance = normalWeighted * 0.0001
+    const lowerBound = normalWeighted - tolerance
+    const upperBound = normalWeighted + tolerance
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
+        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
+      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    )
+
+    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    )
+
+    let user_rewards = await calculateUserRewards(
+      addressBondsFetched.weightedLivelinessScore.toNumber(),
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      true,
+      program
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 ===
+        userRewardsAcc.claimableAmount.toNumber()
+    )
+  })
+
+  it('Stake rewards user2', async () => {
+    const addressBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    const bond = PublicKey.findProgramAddressSync(
+      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      program.programId
+    )[0]
+
+    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
+      rewardsConfigPda
+    )
+
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(addressBondsRewards)
+
+    let bondBefore = await program.account.bond.fetch(bond)
+
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
+    )
+
+    let x = await program.methods
+      .stakeRewards(1, 1)
+      .signers([user2])
+      .accounts({
+        addressBondsRewards: addressBondsRewards,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        bond: bond,
+        authority: user2.publicKey,
+      })
+      .rpc()
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      addressBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
+    )
+
+    const tolerance = normalWeighted * 0.0001
+    const lowerBound = normalWeighted - tolerance
+    const upperBound = normalWeighted + tolerance
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
+        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
+      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    )
+
+    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
+    )
+
+    let bondAfter = await program.account.bond.fetch(bond)
+
+    let user_rewards = await calculateUserRewards(
+      addressBondsFetched.weightedLivelinessScore.toNumber(),
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      false,
+      program
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 +
+        bondBefore.bondAmount.toNumber() ===
+        bondAfter.bondAmount.toNumber()
+    )
+    assert(userRewardsAcc.claimableAmount.toNumber() === 0)
+  })
+
+  it('Claim rewards user', async () => {
+    const addressBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      program.programId
+    )[0]
+
+    let addressRewardsAccBefore =
+      await program.account.addressBondsRewards.fetch(addressBondsRewards)
+    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
+    )
+
+    let user_balance_before = await provider.connection.getTokenAccountBalance(
+      itheum_token_user_ata
+    )
+
+    let x = await program.methods
+      .claimRewards(1)
+      .signers([user])
+      .accounts({
+        addressBondsRewards: addressBondsRewards,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        mintOfTokenToReceive: itheum_token_mint.publicKey,
+        authority: user.publicKey,
+        authorityTokenAccount: itheum_token_user_ata,
+      })
+      .rpc()
+
+    let normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      addressBondsRewards,
+      bondConfigPda1,
+      program
+    )
+
+    let addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      addressBondsRewards
+    )
+
+    const tolerance = normalWeighted * 0.0001
+    const lowerBound = normalWeighted - tolerance
+    const upperBound = normalWeighted + tolerance
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
+        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
+      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    )
+
+    let user_rewards = await calculateUserRewards(
+      addressBondsFetched.weightedLivelinessScore.toNumber(),
+      addressRewardsAccBefore.addressRewardsPerShare,
+      userBondsBefore.addressTotalBondAmount,
+      rewardsConfigPda,
+      false,
+      program
+    )
+
+    let user_balance_after = await provider.connection.getTokenAccountBalance(
+      itheum_token_user_ata
+    )
+
+    assert(
+      addressRewardsAccBefore.claimableAmount.toNumber() +
+        user_rewards / 10 ** 9 +
+        Number(user_balance_before.value.amount) ===
+        Number(user_balance_after.value.amount)
+    )
+
+    let addressRewardsAccAfter =
+      await program.account.addressBondsRewards.fetch(addressBondsRewards)
+
+    assert(addressRewardsAccAfter.claimableAmount.toNumber() === 0)
   })
 })
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function calculateTotalRewardsInInterval(
+  previous_slot: number,
+  rewardsConfigPda: PublicKey,
+  program: anchor.Program<CoreSolBondStakeSc>
+) {
+  let rewards_config = await program.account.rewardsConfig.fetch(
+    rewardsConfigPda
+  )
+
+  let slots = rewards_config.lastRewardSlot.toNumber() - previous_slot
+
+  let total_rewards = rewards_config.rewardsPerSlot.mul(new anchor.BN(slots))
+
+  return total_rewards.toNumber()
+}
+
+// calculate user rewards based on the total rewards
+async function calculateUserRewards(
+  normalWeighted: number,
+  address_last_rewards_per_share: anchor.BN,
+  address_last_total_bond_amount: anchor.BN,
+  rewards_config: PublicKey,
+  bypassLiveliness: boolean,
+  program: anchor.Program<CoreSolBondStakeSc>
+) {
+  const rewardsAcc = await program.account.rewardsConfig.fetch(rewards_config)
+
+  let user_rewards = address_last_total_bond_amount.mul(
+    rewardsAcc.rewardsPerShare.sub(address_last_rewards_per_share)
+  )
+
+  if (normalWeighted >= 9500 || bypassLiveliness) {
+    return user_rewards.toNumber()
+  } else {
+    return (user_rewards.toNumber() * normalWeighted) / 10000
+  }
+}
+
+async function calculateWeightedLivelinessScore(
+  signature: TransactionSignature,
+  userBondsPda: PublicKey,
+  bondsConfigPda: PublicKey,
+  program: anchor.Program<CoreSolBondStakeSc>
+) {
+  let newConn = new Connection('http://localhost:8899', 'confirmed')
+
+  let sigStatus = await newConn.getSignatureStatus(signature)
+
+  let blockTime = await newConn.getBlockTime(sigStatus.context.slot)
+  if (!blockTime) {
+    throw new Error('Unable to fetch block time for the provided slot')
+  }
+
+  let current_timestamp = blockTime
+
+  const userBondsAcc = await program.account.addressBondsRewards.fetch(
+    userBondsPda
+  )
+
+  const bondConfigAcc = await program.account.bondConfig.fetch(bondsConfigPda)
+
+  let totalBondAmount = new anchor.BN(0)
+  let totalBondWeight = new anchor.BN(0)
+
+  for (let bond_id = 1; bond_id <= userBondsAcc.currentIndex; bond_id++) {
+    const bond_pda = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('bond'),
+        userBondsAcc.address.toBuffer(),
+        Buffer.from([bond_id]),
+      ],
+      program.programId
+    )[0]
+
+    const bondAcc = await program.account.bond.fetch(bond_pda)
+
+    if (bondAcc.state === 0) {
+      continue
+    }
+
+    const score = computeBondScore(
+      bondConfigAcc.lockPeriod.toNumber(),
+      current_timestamp,
+      bondAcc.unbondTimestamp.toNumber()
+    )
+
+    const bond_weight = bondAcc.bondAmount.mul(new anchor.BN(score))
+    totalBondWeight = totalBondWeight.add(bond_weight)
+
+    totalBondAmount = totalBondAmount.add(bondAcc.bondAmount)
+  }
+
+  const weighted_score = totalBondWeight.div(totalBondAmount)
+
+  return weighted_score.toNumber()
+}
+
+function computeBondScore(
+  lockPeriod: number,
+  currentTimestamp: number,
+  unbondTimestamp: number
+): number {
+  if (currentTimestamp >= unbondTimestamp) {
+    return 0
+  } else {
+    const difference = unbondTimestamp - currentTimestamp
+
+    if (lockPeriod === 0) {
+      return 0
+    } else {
+      const divResult = Math.floor(10000 / lockPeriod)
+      return divResult * difference
+    }
+  }
+}
