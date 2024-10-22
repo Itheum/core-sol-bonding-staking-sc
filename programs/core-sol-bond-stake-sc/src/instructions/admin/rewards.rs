@@ -52,9 +52,9 @@ pub struct RewardsContext<'info> {
     )]
     pub authority_token_account: Account<'info, TokenAccount>,
 
-    system_program: Program<'info, System>,
-    token_program: Program<'info, Token>,
-    associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 pub fn add_rewards(ctx: Context<RewardsContext>, amount: u64) -> Result<()> {

@@ -8,11 +8,10 @@ pub struct Bond {
     pub bond_timestamp: u64,
     pub unbond_timestamp: u64,
     pub bond_amount: u64,
-    pub lock_period: u64,
-    pub mint_of_nft: Pubkey,
+    pub asset_id: Pubkey,
     pub owner: Pubkey,
     pub padding: [u8; 64],
 }
 impl Space for Bond {
-    const INIT_SPACE: usize = 8 + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 32 + 32 + 64;
+    const INIT_SPACE: usize = 8 + 1 + 1 + 1 + 8 + 8 + 8 + 32 + 32 + 64;
 }

@@ -28,12 +28,16 @@ pub enum Errors {
     WrongBondId,
     #[msg("Invalid remaining accounts")]
     InvalidRemainingAccounts,
-    #[msg("Wrong owner")]
-    WrongOwner,
     #[msg("Wrong value")]
     WrongValue,
     #[msg("Bond is inactive")]
     BondIsInactive,
     #[msg("Bond is not a vault")]
     BondIsNotAVault,
+    #[msg("Merkle tree mismatch")]
+    MerkleTreeMismatch,
+    #[msg("Not creator")]
+    NotCreator,
+    #[msg("Asset Id mismatch")]
+    AssetIdMismatch,
 }

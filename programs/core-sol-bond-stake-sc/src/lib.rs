@@ -13,7 +13,7 @@ use constants::*;
 mod errors;
 use errors::*;
 
-declare_id!("2gxhxhiRqQazdyniirt9QHhJk9aguG1RgtAhfo5B4yDY");
+declare_id!("4zAKaiW68x31n7mRbYQBUgTC9BWL3q4uATjuBc5txYSN");
 
 #[program]
 pub mod core_sol_bond_stake_sc {
@@ -40,6 +40,10 @@ pub mod core_sol_bond_stake_sc {
         )
     }
 
+    pub fn initialize_vault(ctx: Context<InitializeVault>) -> Result<()> {
+        instructions::initialize_vault(ctx)
+    }
+
     // Create new bond config
     pub fn create_bond_config(
         ctx: Context<CreateBondConfig>,
@@ -60,12 +64,12 @@ pub mod core_sol_bond_stake_sc {
         instructions::update_bond_state(ctx, State::Inactive.to_code())
     }
 
-    pub fn update_mint_of_collection(
+    pub fn update_merkle_tree(
         ctx: Context<UpdateBondConfig>,
         _index: u8,
-        mint_of_collection: Pubkey,
+        merkle_tree: Pubkey,
     ) -> Result<()> {
-        instructions::update_mint_of_collection(ctx, mint_of_collection)
+        instructions::update_merkle_tree(ctx, merkle_tree)
     }
 
     pub fn update_lock_period(
@@ -123,17 +127,42 @@ pub mod core_sol_bond_stake_sc {
 
     // Bonding
 
+    pub fn initialize_address(ctx: Context<InitializeAddress>) -> Result<()> {
+        instructions::initialize_address(ctx)
+    }
+
     pub fn bond<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'info, 'info, BondContext<'info>>,
         _bond_config_index: u8,
         bond_id: u8,
         amount: u64,
+        nonce: u64,
         is_vault: bool,
+        root: [u8; 32],
+        data_hash: [u8; 32],
+        creator_hash: [u8; 32],
     ) -> Result<()> {
-        instructions::bond(ctx, bond_id, amount, is_vault)
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
+        instructions::bond(
+            ctx,
+            bond_id,
+            amount,
+            nonce,
+            is_vault,
+            root,
+            data_hash,
+            creator_hash,
+        )
     }
 
-    pub fn renew(ctx: Context<Renew>, _bond_id: u8) -> Result<()> {
+    pub fn renew(ctx: Context<Renew>, _bond_config_index: u8, _bond_id: u8) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::renew(ctx)
     }
 
@@ -142,14 +171,23 @@ pub mod core_sol_bond_stake_sc {
         _bond_config_index: u8,
         _bond_id: u8,
     ) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::withdraw(ctx)
     }
 
     pub fn top_up<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, TopUp<'info>>,
+        _bond_config_index: u8,
         _bond_id: u8,
         amount: u64,
     ) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::top_up(ctx, amount)
     }
 
@@ -157,13 +195,28 @@ pub mod core_sol_bond_stake_sc {
 
     pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, StakeRewards<'info>>,
+        _bond_config_index: u8,
+        _bond_id: u8,
     ) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
+        require!(
+            ctx.accounts.rewards_config.rewards_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::stake_rewards(ctx)
     }
 
     pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, ClaimRewards<'info>>,
+        _bond_config_index: u8,
     ) -> Result<()> {
+        require!(
+            ctx.accounts.rewards_config.rewards_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
         instructions::claim_rewards(ctx)
     }
 }

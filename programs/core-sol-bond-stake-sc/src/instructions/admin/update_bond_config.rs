@@ -25,12 +25,9 @@ pub fn update_bond_state(ctx: Context<UpdateBondConfig>, state: u8) -> Result<()
     Ok(())
 }
 
-pub fn update_mint_of_collection(
-    ctx: Context<UpdateBondConfig>,
-    mint_of_collection: Pubkey,
-) -> Result<()> {
+pub fn update_merkle_tree(ctx: Context<UpdateBondConfig>, merkle_tree: Pubkey) -> Result<()> {
     let bond_config = &mut ctx.accounts.bond_config;
-    bond_config.mint_of_collection = mint_of_collection;
+    bond_config.merkle_tree = merkle_tree;
     Ok(())
 }
 
