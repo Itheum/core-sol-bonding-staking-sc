@@ -1272,13 +1272,11 @@ describe('core-sol-bond-stake-sc', () => {
           1,
           1,
           new anchor.BN(100e9),
-          toWeb3JsPublicKey(user_nft_leaf_schemas[0].id),
+          new anchor.BN(Number(user_nft_leaf_schemas[0].nonce)),
           false,
           Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
           Array.from(user_nft_leaf_schemas[0].dataHash),
-          Array.from(user_nft_leaf_schemas[0].creatorHash),
-          new anchor.BN(user_nft_leaf_schemas[0].nonce.toString()),
-          1
+          Array.from(user_nft_leaf_schemas[0].creatorHash)
         )
         .signers([user])
         .accounts({
@@ -1354,14 +1352,12 @@ describe('core-sol-bond-stake-sc', () => {
         .bond(
           1,
           1,
-          new anchor.BN(200e9),
-          toWeb3JsPublicKey(user_nft_leaf_schemas[0].id),
+          new anchor.BN(10e9),
+          new anchor.BN(Number(user_nft_leaf_schemas[0].nonce)),
           false,
           Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
           Array.from(user_nft_leaf_schemas[0].dataHash),
-          Array.from(user_nft_leaf_schemas[0].creatorHash),
-          new anchor.BN(user_nft_leaf_schemas[0].nonce.toString()),
-          1
+          Array.from(user_nft_leaf_schemas[0].creatorHash)
         )
         .signers([user])
         .accounts({
@@ -1420,13 +1416,11 @@ describe('core-sol-bond-stake-sc', () => {
           1,
           2,
           new anchor.BN(100e9),
-          toWeb3JsPublicKey(user_nft_leaf_schemas[0].id),
+          new anchor.BN(Number(user_nft_leaf_schemas[0].nonce)),
           false,
           Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
           Array.from(user_nft_leaf_schemas[0].dataHash),
-          Array.from(user_nft_leaf_schemas[0].creatorHash),
-          new anchor.BN(user_nft_leaf_schemas[0].nonce.toString()),
-          1
+          Array.from(user_nft_leaf_schemas[0].creatorHash)
         )
         .signers([user])
         .accounts({
@@ -1484,13 +1478,11 @@ describe('core-sol-bond-stake-sc', () => {
         1,
         1,
         new anchor.BN(100e9),
-        toWeb3JsPublicKey(user_nft_leaf_schemas[0].id),
+        new anchor.BN(Number(user_nft_leaf_schemas[0].nonce)),
         true,
         Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
         Array.from(user_nft_leaf_schemas[0].dataHash),
-        Array.from(user_nft_leaf_schemas[0].creatorHash),
-        new anchor.BN(user_nft_leaf_schemas[0].nonce.toString()),
-        1
+        Array.from(user_nft_leaf_schemas[0].creatorHash)
       )
       .signers([user])
       .accounts({
@@ -1556,13 +1548,11 @@ describe('core-sol-bond-stake-sc', () => {
         1,
         2,
         new anchor.BN(100e9),
-        toWeb3JsPublicKey(user_nft_leaf_schemas[1].id),
+        new anchor.BN(Number(user_nft_leaf_schemas[1].nonce)),
         false,
         Array.from(bs58.decode(user_nft_leaf_schemas[1].id)),
         Array.from(user_nft_leaf_schemas[1].dataHash),
-        Array.from(user_nft_leaf_schemas[1].creatorHash),
-        new anchor.BN(user_nft_leaf_schemas[1].nonce.toString()),
-        1
+        Array.from(user_nft_leaf_schemas[1].creatorHash)
       )
       .signers([user])
       .accounts({
@@ -1638,13 +1628,11 @@ describe('core-sol-bond-stake-sc', () => {
         1,
         1,
         new anchor.BN(100e9),
-        toWeb3JsPublicKey(user2_nft_leaf_schemas[0].id),
+        new anchor.BN(Number(user2_nft_leaf_schemas[0].nonce)),
         true,
         Array.from(bs58.decode(user2_nft_leaf_schemas[0].id)),
         Array.from(user2_nft_leaf_schemas[0].dataHash),
-        Array.from(user2_nft_leaf_schemas[0].creatorHash),
-        new anchor.BN(user2_nft_leaf_schemas[0].nonce.toString()),
-        1
+        Array.from(user2_nft_leaf_schemas[0].creatorHash)
       )
       .signers([user2])
       .accounts({
@@ -2279,13 +2267,11 @@ describe('core-sol-bond-stake-sc', () => {
         1,
         3,
         new anchor.BN(100e9),
-        toWeb3JsPublicKey(user_nft_leaf_schemas[2].id),
+        new anchor.BN(Number(user_nft_leaf_schemas[2].nonce)),
         false,
         Array.from(bs58.decode(user_nft_leaf_schemas[2].id)),
         Array.from(user_nft_leaf_schemas[2].dataHash),
-        Array.from(user_nft_leaf_schemas[2].creatorHash),
-        new anchor.BN(user_nft_leaf_schemas[2].nonce.toString()),
-        1
+        Array.from(user_nft_leaf_schemas[2].creatorHash)
       )
       .signers([user])
       .accounts({

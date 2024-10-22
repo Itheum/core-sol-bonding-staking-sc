@@ -186,7 +186,7 @@ Because the program needs a constant admin address, the tests will use the `UNIT
 Copy the content from `env.copy` to `.env`. Copy the `UNIT_TEST_PUBLIC_KEY` from the `env.copy` to the `constants.rs` file where the `ADMIN_PUBKEY` constant is defined.
 
 > [!WARNING]  
-> In order to run the tests, you need to comment out the cNFT leaf owner check in bond endpoint at `src/bond.rs` line `185` - `201`. This check can be tested separately on devnet.
+> In order to run the tests, you need to comment out the cNFT leaf owner check in bond endpoint at `src/bond.rs` line `165` - `181`. This check can be tested separately on devnet.
 
 ```
 $ anchor test
