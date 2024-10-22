@@ -32,7 +32,7 @@ pub struct BondContext<'info> {
         bump,
         space=AssetUsage::INIT_SPACE
     )]
-    pub asset_usage: Account<'info, AssetUsage>,
+    pub asset_usage: Box<Account<'info, AssetUsage>>,
 
     #[account(
         init,
@@ -46,7 +46,7 @@ pub struct BondContext<'info> {
         bump,
         space = Bond::INIT_SPACE
     )]
-    pub bond: Account<'info, Bond>,
+    pub bond: Box<Account<'info, Bond>>,
 
     #[account(
         seeds=[BOND_CONFIG_SEED.as_bytes(),&bond_config_index.to_be_bytes()],
@@ -74,12 +74,12 @@ pub struct BondContext<'info> {
         associated_token::mint=mint_of_token_sent,
         associated_token::authority=vault_config
     )]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: Box<Account<'info, TokenAccount>>,
 
     #[account(
         constraint=mint_of_token_sent.key()==vault_config.mint_of_token @ Errors::MintMismatch,
     )]
-    pub mint_of_token_sent: Account<'info, Mint>,
+    pub mint_of_token_sent: Box<Account<'info, Mint>>,
 
     #[account(
         mut,
