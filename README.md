@@ -50,6 +50,8 @@ Next, install dependencies:
 $ yarn
 ```
 
+If you use npm and have warnings, you can install via `--legacy-peer-deps` (as its only needed for interactions script usage)
+
 ### Build `core-sol-bond-stake-sc`
 
 Remove any `target` folder if needed or rename if you want to keep it (i.e. version upgrade). You also need to delete it the first time you deploy this program, as only doing this will generate a new program_id needed for next step. For upgrades and followups, you don't need to delete the folder.
@@ -60,7 +62,7 @@ $ anchor build
 
 #### Update `program_id`
 
-Get the public key of the deploy key. This keypair is generated automatically so a different key is expected:
+Once you build, a new Program address is generated (so long as you don't have a `target` folder). Get the public key of the program. This keypair is generated automatically so a different key is expected:
 
 ```bash
 $ anchor keys list
@@ -94,7 +96,7 @@ ALSO, note that you need to "hardcode" the General Admin wallet in constants.rs.
 pub const ADMIN_PUBKEY: Pubkey = pubkey!("AxDG4CDKrn8s3a1caY69nQYCjR8YnxqjhMPwhUGFKL2Q");
 ```
 
-We we re-Build the program: (DO NOT delete the target folder this time before running)
+We re-Build the program: (DO NOT delete the `target` folder this time before running)
 
 ```
 $ anchor build
@@ -112,12 +114,16 @@ or else, you can update Anchor.toml `cluster = "devnet"` or `mainnet` (mainnet-b
 
 you can also toggle deploying wallet by `wallet = "usb://ledger?key=1"` or `wallet = "~/.config/solana/id.json"`
 
-NOTE: that we can't deploy via Anchor as we found it not too stable, so we used the Solana CLI.
+Deploy command for Anchor:
+`anchor deploy`
+
+**Ledger based deploys**
+NOTE: that we can't deploy via Anchor as we found it not too unstable when using Ledger, so we used the Solana CLI.
 
 - First, let's generate a new key pair that we will use to deploy the "buffer", once you have it, save it somewhere safe. You will also need a decent amount of SOL in this account (around 3 should do for this program), as it will be used as "rent" for the code. then we set this as the default solana cli wallet for now (or else it will use our standard id.json wallet). Note that on top of setting the custom wallet, you also need to confirm the RPC and config is correct for the mainnet deployment as it defaults to devnet.
 
 Update RPC for devnet/testnet/mainnet by editing the config file here:
-`vi /Users/markpaul/.config/solana/cli/config.yml` (and then check via `solana config get`)
+`vi /Users/USER/.config/solana/cli/config.yml` (and then check via `solana config get`)
 
 Set the default wallet like so:
 `solana config set -k /location_of/custom_wallet.json`
@@ -125,10 +131,10 @@ Set the default wallet like so:
 The below keys have been backed-up in storage.
 
 [devnet]
-`solana config set -k /Users/markpaul/Documents/Source/Software/core-sol-bond-stake-sc/devnet_interim_first_deployer_wallet_9tSsTbCZEGMgZYALathtBbqmELY7BefFbQQ4gasXGBAo.json`
+`solana config set -k /Users/USER/Documents/Source/Software/core-sol-bond-stake-sc/devnet_interim_first_deployer_wallet_9tSsTbCZEGMgZYALathtBbqmELY7BefFbQQ4gasXGBAo.json`
 
 [mainnet]
-`solana config set -k /Users/markpaul/Documents/Source/Software/core-sol-bond-stake-sc/interim_buffer_deployer_mainnet_FVnq4TFB39W8xEY36rhwFnScpkGzc59jhL3EuFi6K8Nb.json`
+`solana config set -k /Users/USER/Documents/Source/Software/core-sol-bond-stake-sc/interim_buffer_deployer_mainnet_FVnq4TFB39W8xEY36rhwFnScpkGzc59jhL3EuFi6K8Nb.json`
 
 - Next, we use this key pair to generate the buffer
   `solana program write-buffer "./target/deploy/core-sol-bond-stake-sc.so"`
@@ -191,3 +197,9 @@ Copy the content from `env.copy` to `.env`. Copy the `UNIT_TEST_PUBLIC_KEY` from
 ```
 $ anchor test
 ```
+
+### Using Interactions Node Script
+
+Configure your deployed contract using the interactions node script.
+
+Go into the interactions Folder, and run the script as `bun index.ts` as you comment out sections you want to run. We use `bun` so you can run the TS files. You can also use `npx ts-node index.ts `
