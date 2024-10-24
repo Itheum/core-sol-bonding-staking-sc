@@ -13,6 +13,17 @@ use constants::*;
 mod errors;
 use errors::*;
 
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    name: "itheum-bonding-staking-program",
+    project_url: "https://www.itheum.io/",
+    contacts: "https://itheum.io/bug-bounty",
+    policy: "https://itheum.io/bug-bounty",
+    source_code: "https://github.com/Itheum/core-sol-bonding-staking-sc",
+    preferred_languages: "en",
+    auditors: "https://itheum.io/audits"
+}
+
 declare_id!("4nvez1kVuTbeeMBzXkuUfDvFNLuSraAqbxK5NypRMvtM");
 
 #[program]
