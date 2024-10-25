@@ -161,23 +161,23 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     // check leaf owner here
     let asset_id = get_asset_id(&ctx.accounts.merkle_tree.key(), nonce);
 
-    // let leaf = LeafSchema::V1 {
-    //     id: asset_id,
-    //     owner: ctx.accounts.authority.key(),
-    //     delegate: ctx.accounts.authority.key(),
-    //     nonce,
-    //     data_hash,
-    //     creator_hash,
-    // };
-    // let cpi_ctx = CpiContext::new(
-    //     ctx.accounts.compression_program.to_account_info(),
-    //     spl_account_compression::cpi::accounts::VerifyLeaf {
-    //         merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
-    //     },
-    // )
-    // .with_remaining_accounts(ctx.remaining_accounts.to_vec());
+    let leaf = LeafSchema::V1 {
+        id: asset_id,
+        owner: ctx.accounts.authority.key(),
+        delegate: ctx.accounts.authority.key(),
+        nonce,
+        data_hash,
+        creator_hash,
+    };
+    let cpi_ctx = CpiContext::new(
+        ctx.accounts.compression_program.to_account_info(),
+        spl_account_compression::cpi::accounts::VerifyLeaf {
+            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+        },
+    )
+    .with_remaining_accounts(ctx.remaining_accounts.to_vec());
 
-    // spl_account_compression::cpi::verify_leaf(cpi_ctx, root, leaf.hash(), nonce as u32)?;
+    spl_account_compression::cpi::verify_leaf(cpi_ctx, root, leaf.hash(), nonce as u32)?;
 
     let current_timestamp = get_current_timestamp()?;
 
