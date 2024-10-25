@@ -1,6 +1,6 @@
-import * as anchor from '@coral-xyz/anchor'
-import {Program} from '@coral-xyz/anchor'
-import {CoreSolBondStakeSc} from '../target/types/core_sol_bond_stake_sc'
+import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
+import { CoreSolBondStakeSc } from "../target/types/core_sol_bond_stake_sc";
 import {
   Connection,
   Keypair,
@@ -9,7 +9,7 @@ import {
   SystemProgram,
   Transaction,
   TransactionSignature,
-} from '@solana/web3.js'
+} from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
@@ -19,12 +19,12 @@ import {
   getMinimumBalanceForRentExemptMint,
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
-} from '@solana/spl-token'
+} from "@solana/spl-token";
 import {
   generateSigner,
   keypairIdentity,
   percentAmount,
-} from '@metaplex-foundation/umi'
+} from "@metaplex-foundation/umi";
 import {
   createTree,
   getAssetWithProof,
@@ -35,122 +35,122 @@ import {
   mplBubblegum,
   parseLeafFromMintToCollectionV1Transaction,
   SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
-} from '@metaplex-foundation/mpl-bubblegum'
-import {assert, expect} from 'chai'
+} from "@metaplex-foundation/mpl-bubblegum";
+import { assert, expect } from "chai";
 import {
   mplTokenMetadata,
   createNft,
-} from '@metaplex-foundation/mpl-token-metadata'
+} from "@metaplex-foundation/mpl-token-metadata";
 import {
   fromWeb3JsKeypair,
   fromWeb3JsPublicKey,
   toWeb3JsPublicKey,
-} from '@metaplex-foundation/umi-web3js-adapters'
-import {createUmi} from '@metaplex-foundation/umi-bundle-defaults'
-import {bs58} from '@coral-xyz/anchor/dist/cjs/utils/bytes'
+} from "@metaplex-foundation/umi-web3js-adapters";
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
-require('dotenv').config()
+require("dotenv").config();
 
-describe('core-sol-bond-stake-sc', () => {
-  anchor.setProvider(anchor.AnchorProvider.env())
+describe("core-sol-bond-stake-sc", () => {
+  anchor.setProvider(anchor.AnchorProvider.env());
 
-  const provider = anchor.getProvider()
-  const connection = provider.connection
+  const provider = anchor.getProvider();
+  const connection = provider.connection;
   const program = anchor.workspace
-    .CoreSolBondStakeSc as Program<CoreSolBondStakeSc>
+    .CoreSolBondStakeSc as Program<CoreSolBondStakeSc>;
 
-  const PRIVATE_KEY_STR = process.env.UNIT_TEST_PRIVATE_KEY
-  const privateKeys = PRIVATE_KEY_STR.split(',').map(Number)
+  const PRIVATE_KEY_STR = process.env.UNIT_TEST_PRIVATE_KEY;
+  const privateKeys = PRIVATE_KEY_STR.split(",").map(Number);
 
   const [user, user2, itheum_token_mint, another_token_mint] = Array.from(
-    {length: 5},
+    { length: 5 },
     () => Keypair.generate()
-  )
+  );
 
-  let collection_mint: PublicKey
-  let user_nft_leaf_schemas: LeafSchema[] = []
-  let user2_nft_leaf_schemas: LeafSchema[] = []
-  let merkleTree: PublicKey
+  let collection_mint: PublicKey;
+  let user_nft_leaf_schemas: LeafSchema[] = [];
+  let user2_nft_leaf_schemas: LeafSchema[] = [];
+  let merkleTree: PublicKey;
 
   const itheum_token_user_ata = getAssociatedTokenAddressSync(
     itheum_token_mint.publicKey,
     user.publicKey
-  )
+  );
   const another_token_user_ata = getAssociatedTokenAddressSync(
     another_token_mint.publicKey,
     user.publicKey
-  )
+  );
 
   const itheum_token_user2_ata = getAssociatedTokenAddressSync(
     itheum_token_mint.publicKey,
     user2.publicKey
-  )
+  );
   const another_token_user2_ata = getAssociatedTokenAddressSync(
     another_token_mint.publicKey,
     user2.publicKey
-  )
+  );
 
-  const admin = Keypair.fromSecretKey(Uint8Array.from(privateKeys))
+  const admin = Keypair.fromSecretKey(Uint8Array.from(privateKeys));
 
   const itheum_token_admin_ata = getAssociatedTokenAddressSync(
     itheum_token_mint.publicKey,
     admin.publicKey
-  )
+  );
   const another_token_admin_ata = getAssociatedTokenAddressSync(
     another_token_mint.publicKey,
     admin.publicKey
-  )
+  );
 
   const bondConfigPda1 = PublicKey.findProgramAddressSync(
-    [Buffer.from('bond_config'), Buffer.from([1])],
+    [Buffer.from("bond_config"), Buffer.from([1])],
     program.programId
-  )[0]
+  )[0];
 
   const rewardsConfigPda = PublicKey.findProgramAddressSync(
-    [Buffer.from('rewards_config')],
+    [Buffer.from("rewards_config")],
     program.programId
-  )[0]
+  )[0];
 
   const vaultConfigPda = PublicKey.findProgramAddressSync(
-    [Buffer.from('vault_config')],
+    [Buffer.from("vault_config")],
     program.programId
-  )[0]
+  )[0];
 
   const vault_ata = getAssociatedTokenAddressSync(
     itheum_token_mint.publicKey,
     vaultConfigPda,
     true
-  )
+  );
 
   const another_vault_ata = getAssociatedTokenAddressSync(
     another_token_mint.publicKey,
     vaultConfigPda,
     true
-  )
+  );
 
-  let activation_slot: number = 0
+  let activation_slot: number = 0;
 
   const confirm = async (signature: string): Promise<string> => {
-    const block = await connection.getLatestBlockhash()
+    const block = await connection.getLatestBlockhash();
     await connection.confirmTransaction({
       signature,
       ...block,
-    })
+    });
 
-    return signature
-  }
+    return signature;
+  };
 
   const log = async (signature: string): Promise<string> => {
     console.log(
       `Transaction signature: https://explorer.solana.com/transaction/${signature}?cluster=custom&customUrl=${connection.rpcEndpoint}`
-    )
-    return signature
-  }
+    );
+    return signature;
+  };
 
-  before('Airdrop and create mints and collections', async () => {
-    let lamports = await getMinimumBalanceForRentExemptMint(connection)
+  before("Airdrop and create mints and collections", async () => {
+    let lamports = await getMinimumBalanceForRentExemptMint(connection);
 
-    let tx2 = new Transaction()
+    let tx2 = new Transaction();
     tx2.instructions = [
       ...[admin].map((k) =>
         SystemProgram.transfer({
@@ -186,12 +186,12 @@ describe('core-sol-bond-stake-sc', () => {
         ),
         createMintToInstruction(x[0], x[2], x[1], 2_000_000e9),
       ]),
-    ]
+    ];
     await provider
       .sendAndConfirm(tx2, [admin, itheum_token_mint, another_token_mint])
-      .then(log)
+      .then(log);
 
-    let tx = new Transaction()
+    let tx = new Transaction();
     tx.instructions = [
       ...[user, user2].map((k) =>
         SystemProgram.transfer({
@@ -219,49 +219,49 @@ describe('core-sol-bond-stake-sc', () => {
         ),
         createMintToInstruction(x[0], x[2], admin.publicKey, 1_000e9),
       ]),
-    ]
+    ];
 
-    await provider.sendAndConfirm(tx, [admin])
+    await provider.sendAndConfirm(tx, [admin]);
 
-    let umiConnection = new Connection('http://localhost:8899', 'confirmed')
+    let umiConnection = new Connection("http://localhost:8899", "confirmed");
 
-    const umi = createUmi(umiConnection)
-    umi.use(mplTokenMetadata())
+    const umi = createUmi(umiConnection);
+    umi.use(mplTokenMetadata());
 
-    umi.use(keypairIdentity(fromWeb3JsKeypair(admin)))
+    umi.use(keypairIdentity(fromWeb3JsKeypair(admin)));
 
-    const collection = generateSigner(umi)
+    const collection = generateSigner(umi);
 
-    collection_mint = toWeb3JsPublicKey(collection.publicKey)
+    collection_mint = toWeb3JsPublicKey(collection.publicKey);
 
     const resp = await createNft(umi, {
       mint: collection,
-      name: 'Itheum Vaults',
-      uri: 'https://ipfs.io/ipfs/QmTBeJHejL9awc5RA3u7TGWNv9RyGi2KgQUfzzdZstyz3n/',
+      name: "Itheum Vaults",
+      uri: "https://ipfs.io/ipfs/QmTBeJHejL9awc5RA3u7TGWNv9RyGi2KgQUfzzdZstyz3n/",
       sellerFeeBasisPoints: percentAmount(5.1), // 5.1%
       isCollection: true,
-    }).sendAndConfirm(umi)
+    }).sendAndConfirm(umi);
 
-    const umi2 = createUmi(umiConnection)
+    const umi2 = createUmi(umiConnection);
 
-    umi2.use(keypairIdentity(fromWeb3JsKeypair(admin)))
-    umi2.use(mplBubblegum())
+    umi2.use(keypairIdentity(fromWeb3JsKeypair(admin)));
+    umi2.use(mplBubblegum());
 
-    const merkleTreeKey = generateSigner(umi2)
+    const merkleTreeKey = generateSigner(umi2);
     const builder = await createTree(umi2, {
       merkleTree: merkleTreeKey,
       maxDepth: 14,
       maxBufferSize: 64,
-    })
-    await builder.sendAndConfirm(umi2)
+    });
+    await builder.sendAndConfirm(umi2);
 
-    merkleTree = toWeb3JsPublicKey(merkleTreeKey.publicKey)
+    merkleTree = toWeb3JsPublicKey(merkleTreeKey.publicKey);
 
     const metadata: MetadataArgsArgs = {
-      name: 'Vault NFMEID user1',
-      uri: 'https://indigo-complete-silverfish-271.mypinata.cloud/ipfs/QmcgwWW47d9FjHksKhZ5DWJYWvzPbVR1uhgH8kwBgNkJ9F/GetBitzNFTunesMainM.json',
+      name: "Vault NFMEID user1",
+      uri: "https://indigo-complete-silverfish-271.mypinata.cloud/ipfs/QmcgwWW47d9FjHksKhZ5DWJYWvzPbVR1uhgH8kwBgNkJ9F/GetBitzNFTunesMainM.json",
       sellerFeeBasisPoints: 200,
-      collection: {key: collection.publicKey, verified: false},
+      collection: { key: collection.publicKey, verified: false },
       creators: [
         {
           address: fromWeb3JsKeypair(user).publicKey,
@@ -269,13 +269,13 @@ describe('core-sol-bond-stake-sc', () => {
           share: 100,
         },
       ],
-    }
+    };
 
     const metadata2: MetadataArgsArgs = {
-      name: 'Vault NFMEID user2',
-      uri: 'https://indigo-complete-silverfish-271.mypinata.cloud/ipfs/QmcgwWW47d9FjHksKhZ5DWJYWvzPbVR1uhgH8kwBgNkJ9F/GetBitzNFTunesMainM.json',
+      name: "Vault NFMEID user2",
+      uri: "https://indigo-complete-silverfish-271.mypinata.cloud/ipfs/QmcgwWW47d9FjHksKhZ5DWJYWvzPbVR1uhgH8kwBgNkJ9F/GetBitzNFTunesMainM.json",
       sellerFeeBasisPoints: 200,
-      collection: {key: collection.publicKey, verified: false},
+      collection: { key: collection.publicKey, verified: false },
       creators: [
         {
           address: fromWeb3JsKeypair(user2).publicKey,
@@ -283,7 +283,7 @@ describe('core-sol-bond-stake-sc', () => {
           share: 100,
         },
       ],
-    }
+    };
 
     for (let i = 0; i < 5; i++) {
       const resp = await mintToCollectionV1(umi2, {
@@ -291,14 +291,14 @@ describe('core-sol-bond-stake-sc', () => {
         merkleTree: fromWeb3JsPublicKey(merkleTree),
         collectionMint: collection.publicKey,
         metadata: metadata,
-      }).sendAndConfirm(umi2)
+      }).sendAndConfirm(umi2);
 
       let nft_leaf_schema = await parseLeafFromMintToCollectionV1Transaction(
         umi2,
         resp.signature
-      )
+      );
 
-      user_nft_leaf_schemas.push(nft_leaf_schema)
+      user_nft_leaf_schemas.push(nft_leaf_schema);
     }
 
     for (let i = 0; i < 5; i++) {
@@ -307,18 +307,18 @@ describe('core-sol-bond-stake-sc', () => {
         merkleTree: fromWeb3JsPublicKey(merkleTree),
         collectionMint: collection.publicKey,
         metadata: metadata2,
-      }).sendAndConfirm(umi2)
+      }).sendAndConfirm(umi2);
 
       let nft2_leaf_schema = await parseLeafFromMintToCollectionV1Transaction(
         umi2,
         resp4.signature
-      )
+      );
 
-      user2_nft_leaf_schemas.push(nft2_leaf_schema)
+      user2_nft_leaf_schemas.push(nft2_leaf_schema);
     }
-  })
+  });
 
-  it('Initialize contract - by user (should fail)', async () => {
+  it("Initialize contract - by user (should fail)", async () => {
     try {
       await program.methods
         .initializeContract(
@@ -336,17 +336,17 @@ describe('core-sol-bond-stake-sc', () => {
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Initialize Contract by admin', async () => {
+  it("Initialize Contract by admin", async () => {
     const sig = await program.methods
       .initializeContract(
         1,
@@ -363,7 +363,7 @@ describe('core-sol-bond-stake-sc', () => {
         merkleTree: merkleTree,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
     await program.methods
       .initializeVault()
@@ -374,37 +374,37 @@ describe('core-sol-bond-stake-sc', () => {
         mintOfToken: itheum_token_mint.publicKey,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1)
-    let vault_config = await program.account.vaultConfig.fetch(vaultConfigPda)
+    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1);
+    let vault_config = await program.account.vaultConfig.fetch(vaultConfigPda);
     let rewards_config = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
-    assert(bond_config.bondAmount.eq(new anchor.BN(100e9)))
-    assert(bond_config.bondState == 0)
-    assert(bond_config.lockPeriod.eq(new anchor.BN(900)))
-    assert(bond_config.merkleTree.equals(merkleTree))
-    assert(bond_config.withdrawPenalty.eq(new anchor.BN(6000)))
-    assert(bond_config.index == 1)
+    assert(bond_config.bondAmount.eq(new anchor.BN(100e9)));
+    assert(bond_config.bondState == 0);
+    assert(bond_config.lockPeriod.eq(new anchor.BN(900)));
+    assert(bond_config.merkleTree.equals(merkleTree));
+    assert(bond_config.withdrawPenalty.eq(new anchor.BN(6000)));
+    assert(bond_config.index == 1);
 
-    assert(vault_config.mintOfToken.equals(itheum_token_mint.publicKey))
+    assert(vault_config.mintOfToken.equals(itheum_token_mint.publicKey));
 
-    assert(rewards_config.rewardsState == 0)
+    assert(rewards_config.rewardsState == 0);
 
-    assert(rewards_config.rewardsState == 0)
-    assert(rewards_config.rewardsPerSlot.eq(new anchor.BN(1e9)))
-    assert(rewards_config.rewardsPerShare.eq(new anchor.BN(0)))
-    assert(rewards_config.lastRewardSlot.eq(new anchor.BN(0)))
-    assert(rewards_config.maxApr.eq(new anchor.BN(0)))
-  })
+    assert(rewards_config.rewardsState == 0);
+    assert(rewards_config.rewardsPerSlot.eq(new anchor.BN(1e9)));
+    assert(rewards_config.rewardsPerShare.eq(new anchor.BN(0)));
+    assert(rewards_config.lastRewardSlot.eq(new anchor.BN(0)));
+    assert(rewards_config.maxApr.eq(new anchor.BN(0)));
+  });
 
-  it('Create bond Config by user (should fail)', async () => {
+  it("Create bond Config by user (should fail)", async () => {
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
     try {
       await program.methods
         .createBondConfig(
@@ -419,21 +419,21 @@ describe('core-sol-bond-stake-sc', () => {
           authority: user.publicKey,
           merkleTree: merkleTree,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Create bond Config by admin', async () => {
+  it("Create bond Config by admin", async () => {
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     await program.methods
       .createBondConfig(
@@ -448,19 +448,19 @@ describe('core-sol-bond-stake-sc', () => {
         authority: admin.publicKey,
         merkleTree: merkleTree,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config = await program.account.bondConfig.fetch(bondConfigPda2)
+    let bond_config = await program.account.bondConfig.fetch(bondConfigPda2);
 
-    assert(bond_config.bondAmount.eq(new anchor.BN(100e9)))
-    assert(bond_config.bondState == 0)
-    assert(bond_config.lockPeriod.eq(new anchor.BN(900)))
-    assert(bond_config.merkleTree.equals(merkleTree))
-    assert(bond_config.withdrawPenalty.eq(new anchor.BN(6000)))
-    assert(bond_config.index == 2)
-  })
+    assert(bond_config.bondAmount.eq(new anchor.BN(100e9)));
+    assert(bond_config.bondState == 0);
+    assert(bond_config.lockPeriod.eq(new anchor.BN(900)));
+    assert(bond_config.merkleTree.equals(merkleTree));
+    assert(bond_config.withdrawPenalty.eq(new anchor.BN(6000)));
+    assert(bond_config.index == 2);
+  });
 
-  it('Set bond state by user (should fail)', async () => {
+  it("Set bond state by user (should fail)", async () => {
     try {
       await program.methods
         .setBondStateActive(1)
@@ -469,12 +469,12 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
 
     try {
@@ -485,18 +485,18 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -506,12 +506,12 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
 
     try {
@@ -522,16 +522,16 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Set bond state by admin', async () => {
+  it("Set bond state by admin", async () => {
     await program.methods
       .setBondStateActive(1)
       .signers([admin])
@@ -539,16 +539,16 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1)
+    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1);
 
-    assert(bond_config.bondState == 1)
+    assert(bond_config.bondState == 1);
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     await program.methods
       .setBondStateActive(2)
@@ -557,11 +557,11 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2)
+    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2);
 
-    assert(bond_config2.bondState == 1)
+    assert(bond_config2.bondState == 1);
 
     // set to inactive
 
@@ -572,11 +572,11 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config3 = await program.account.bondConfig.fetch(bondConfigPda1)
+    let bond_config3 = await program.account.bondConfig.fetch(bondConfigPda1);
 
-    assert(bond_config3.bondState == 0)
+    assert(bond_config3.bondState == 0);
 
     await program.methods
       .setBondStateInactive(2)
@@ -585,14 +585,14 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config4 = await program.account.bondConfig.fetch(bondConfigPda2)
+    let bond_config4 = await program.account.bondConfig.fetch(bondConfigPda2);
 
-    assert(bond_config4.bondState == 0)
-  })
+    assert(bond_config4.bondState == 0);
+  });
 
-  it('Update mint of collection by user (should fail)', async () => {
+  it("Update mint of collection by user (should fail)", async () => {
     try {
       await program.methods
         .updateMerkleTree(1, merkleTree)
@@ -601,19 +601,19 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -623,17 +623,17 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Update mint of collection by admin', async () => {
+  it("Update mint of collection by admin", async () => {
     await program.methods
       .updateMerkleTree(1, merkleTree)
       .signers([admin])
@@ -641,16 +641,16 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1)
+    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1);
 
-    assert(bond_config.merkleTree.equals(merkleTree))
+    assert(bond_config.merkleTree.equals(merkleTree));
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     await program.methods
       .updateMerkleTree(2, merkleTree)
@@ -659,14 +659,14 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2)
+    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2);
 
-    assert(bond_config2.merkleTree.equals(merkleTree))
-  })
+    assert(bond_config2.merkleTree.equals(merkleTree));
+  });
 
-  it('Update lock period by user (should fail)', async () => {
+  it("Update lock period by user (should fail)", async () => {
     try {
       await program.methods
         .updateLockPeriod(1, new anchor.BN(1000))
@@ -675,19 +675,19 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -697,17 +697,17 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Update lock period by admin', async () => {
+  it("Update lock period by admin", async () => {
     await program.methods
       .updateLockPeriod(1, new anchor.BN(1000))
       .signers([admin])
@@ -715,16 +715,16 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1)
+    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1);
 
-    assert(bond_config.lockPeriod.eq(new anchor.BN(1000)))
+    assert(bond_config.lockPeriod.eq(new anchor.BN(1000)));
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     await program.methods
       .updateLockPeriod(2, new anchor.BN(1000))
@@ -733,14 +733,14 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2)
+    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2);
 
-    assert(bond_config2.lockPeriod.eq(new anchor.BN(1000)))
-  })
+    assert(bond_config2.lockPeriod.eq(new anchor.BN(1000)));
+  });
 
-  it('Update bond amount by user (should fail)', async () => {
+  it("Update bond amount by user (should fail)", async () => {
     try {
       await program.methods
         .updateBondAmount(1, new anchor.BN(200e9))
@@ -749,19 +749,19 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -771,17 +771,17 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Update bond amount by admin', async () => {
+  it("Update bond amount by admin", async () => {
     await program.methods
       .updateBondAmount(1, new anchor.BN(200e9))
       .signers([admin])
@@ -789,16 +789,16 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1)
+    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1);
 
-    assert(bond_config.bondAmount.eq(new anchor.BN(200e9)))
+    assert(bond_config.bondAmount.eq(new anchor.BN(200e9)));
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     await program.methods
       .updateBondAmount(2, new anchor.BN(200e9))
@@ -807,11 +807,11 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2)
+    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2);
 
-    assert(bond_config2.bondAmount.eq(new anchor.BN(200e9)))
+    assert(bond_config2.bondAmount.eq(new anchor.BN(200e9)));
 
     await program.methods
       .updateBondAmount(1, new anchor.BN(100e9))
@@ -820,10 +820,10 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
-      .rpc()
-  })
+      .rpc();
+  });
 
-  it('Update withdraw penalty by user (should fail)', async () => {
+  it("Update withdraw penalty by user (should fail)", async () => {
     try {
       await program.methods
         .updateWithdrawPenalty(1, new anchor.BN(5000))
@@ -832,19 +832,19 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda1,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -854,17 +854,17 @@ describe('core-sol-bond-stake-sc', () => {
           bondConfig: bondConfigPda2,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Update withdraw penalty by admin', async () => {
+  it("Update withdraw penalty by admin", async () => {
     await program.methods
       .updateWithdrawPenalty(1, new anchor.BN(5000))
       .signers([admin])
@@ -872,16 +872,16 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda1,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1)
+    let bond_config = await program.account.bondConfig.fetch(bondConfigPda1);
 
-    assert(bond_config.withdrawPenalty.eq(new anchor.BN(5000)))
+    assert(bond_config.withdrawPenalty.eq(new anchor.BN(5000)));
 
     const bondConfigPda2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_config'), Buffer.from([2])],
+      [Buffer.from("bond_config"), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     await program.methods
       .updateWithdrawPenalty(2, new anchor.BN(5000))
@@ -890,16 +890,16 @@ describe('core-sol-bond-stake-sc', () => {
         bondConfig: bondConfigPda2,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
-    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2)
+    let bond_config2 = await program.account.bondConfig.fetch(bondConfigPda2);
 
-    assert(bond_config2.withdrawPenalty.eq(new anchor.BN(5000)))
-  })
+    assert(bond_config2.withdrawPenalty.eq(new anchor.BN(5000)));
+  });
 
   // Rewards Config
 
-  it('Set rewards state by user (should fail)', async () => {
+  it("Set rewards state by user (should fail)", async () => {
     try {
       await program.methods
         .setRewardsStateActive()
@@ -908,12 +908,12 @@ describe('core-sol-bond-stake-sc', () => {
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
 
     try {
@@ -924,16 +924,16 @@ describe('core-sol-bond-stake-sc', () => {
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Set rewards state by admin', async () => {
+  it("Set rewards state by admin", async () => {
     await program.methods
       .setRewardsStateActive()
       .signers([admin])
@@ -941,13 +941,13 @@ describe('core-sol-bond-stake-sc', () => {
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
     let rewards_config = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
-    assert(rewards_config.rewardsState == 1)
+    assert(rewards_config.rewardsState == 1);
 
     await program.methods
       .setRewardsStateInactive()
@@ -956,16 +956,16 @@ describe('core-sol-bond-stake-sc', () => {
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
     let rewards_config2 = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
-    assert(rewards_config2.rewardsState == 0)
-  })
+    assert(rewards_config2.rewardsState == 0);
+  });
 
-  it('Update rewards per slot by user (should fail)', async () => {
+  it("Update rewards per slot by user (should fail)", async () => {
     try {
       await program.methods
         .updateRewardsPerSlot(new anchor.BN(2e9))
@@ -974,17 +974,17 @@ describe('core-sol-bond-stake-sc', () => {
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Update rewards per slot by admin', async () => {
+  it("Update rewards per slot by admin", async () => {
     await program.methods
       .updateRewardsPerSlot(new anchor.BN(2e9))
       .signers([admin])
@@ -992,16 +992,16 @@ describe('core-sol-bond-stake-sc', () => {
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
     let rewards_config = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
-    assert(rewards_config.rewardsPerSlot.eq(new anchor.BN(2e9)))
-  })
+    assert(rewards_config.rewardsPerSlot.eq(new anchor.BN(2e9)));
+  });
 
-  it('Update max apr by user (should fail)', async () => {
+  it("Update max apr by user (should fail)", async () => {
     try {
       await program.methods
         .updateMaxApr(new anchor.BN(10))
@@ -1010,17 +1010,17 @@ describe('core-sol-bond-stake-sc', () => {
           rewardsConfig: rewardsConfigPda,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Update max apr by admin', async () => {
+  it("Update max apr by admin", async () => {
     await program.methods
       .updateMaxApr(new anchor.BN(10))
       .signers([admin])
@@ -1028,16 +1028,16 @@ describe('core-sol-bond-stake-sc', () => {
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
-      .rpc()
+      .rpc();
 
     let rewards_config = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
-    assert(rewards_config.maxApr.eq(new anchor.BN(10)))
-  })
+    assert(rewards_config.maxApr.eq(new anchor.BN(10)));
+  });
 
-  it('Add rewards by user (should fail)', async () => {
+  it("Add rewards by user (should fail)", async () => {
     try {
       await program.methods
         .addRewards(new anchor.BN(1000e9))
@@ -1050,16 +1050,16 @@ describe('core-sol-bond-stake-sc', () => {
           authority: user.publicKey,
           authorityTokenAccount: itheum_token_user_ata,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Add rewards by admin', async () => {
+  it("Add rewards by admin", async () => {
     await program.methods
       .addRewards(new anchor.BN(1_000_000e9))
       .signers([admin])
@@ -1071,16 +1071,16 @@ describe('core-sol-bond-stake-sc', () => {
         authority: admin.publicKey,
         authorityTokenAccount: itheum_token_admin_ata,
       })
-      .rpc()
+      .rpc();
 
     let rewards_config = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
-    assert(rewards_config.rewardsReserve.eq(new anchor.BN(1_000_000e9)))
-  })
+    assert(rewards_config.rewardsReserve.eq(new anchor.BN(1_000_000e9)));
+  });
 
-  it('Remove rewards by user (should fail)', async () => {
+  it("Remove rewards by user (should fail)", async () => {
     try {
       await program.methods
         .removeRewards(new anchor.BN(1000e9))
@@ -1093,12 +1093,12 @@ describe('core-sol-bond-stake-sc', () => {
           authority: user.publicKey,
           authorityTokenAccount: itheum_token_user_ata,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'An address constraint was violated'
-      )
+        "An address constraint was violated"
+      );
     }
 
     try {
@@ -1113,16 +1113,16 @@ describe('core-sol-bond-stake-sc', () => {
           authority: user.publicKey,
           authorityTokenAccount: itheum_token_user_ata,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6006)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6006);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Mint mismatch'
-      )
+        "Mint mismatch"
+      );
     }
-  })
+  });
 
-  it('Remove rewards by admin', async () => {
+  it("Remove rewards by admin", async () => {
     await program.methods
       .removeRewards(new anchor.BN(1000e9))
       .signers([admin])
@@ -1134,13 +1134,13 @@ describe('core-sol-bond-stake-sc', () => {
         authority: admin.publicKey,
         authorityTokenAccount: itheum_token_admin_ata,
       })
-      .rpc()
+      .rpc();
 
     let rewards_config = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
-    assert(rewards_config.rewardsReserve.eq(new anchor.BN(999_000e9)))
+    assert(rewards_config.rewardsReserve.eq(new anchor.BN(999_000e9)));
 
     await program.methods
       .addRewards(new anchor.BN(1_000e9))
@@ -1153,16 +1153,16 @@ describe('core-sol-bond-stake-sc', () => {
         authority: admin.publicKey,
         authorityTokenAccount: itheum_token_admin_ata,
       })
-      .rpc()
+      .rpc();
 
     let rewards_config2 = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
-    assert(rewards_config2.rewardsReserve.eq(new anchor.BN(1_000_000e9)))
-  })
+    assert(rewards_config2.rewardsReserve.eq(new anchor.BN(1_000_000e9)));
+  });
 
-  it('Remove rewards by admin (should fail - mint of token mismatch)', async () => {
+  it("Remove rewards by admin (should fail - mint of token mismatch)", async () => {
     try {
       await program.methods
         .removeRewards(new anchor.BN(1000e9))
@@ -1175,14 +1175,14 @@ describe('core-sol-bond-stake-sc', () => {
           authority: admin.publicKey,
           authorityTokenAccount: itheum_token_admin_ata,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6006)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6006);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Mint mismatch'
-      )
+        "Mint mismatch"
+      );
     }
-  })
+  });
 
   it("Remove rewards by admin (should fail - authority's token account mismatch)", async () => {
     try {
@@ -1197,14 +1197,14 @@ describe('core-sol-bond-stake-sc', () => {
           authority: admin.publicKey,
           authorityTokenAccount: itheum_token_user_ata,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6005)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6005);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Owner mismatch'
-      )
+        "Owner mismatch"
+      );
     }
-  })
+  });
 
   it("Remove rewards by admin (should fail - authority's token account mint mismatch)", async () => {
     try {
@@ -1219,16 +1219,16 @@ describe('core-sol-bond-stake-sc', () => {
           authority: admin.publicKey,
           authorityTokenAccount: another_token_admin_ata,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6006)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6006);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Mint mismatch'
-      )
+        "Mint mismatch"
+      );
     }
-  })
+  });
 
-  it('Remove rewards by admin (should fail - wrong vault ata', async () => {
+  it("Remove rewards by admin (should fail - wrong vault ata", async () => {
     try {
       await program.methods
         .removeRewards(new anchor.BN(1000e9))
@@ -1241,30 +1241,30 @@ describe('core-sol-bond-stake-sc', () => {
           authority: admin.publicKey,
           authorityTokenAccount: itheum_token_admin_ata,
         })
-        .rpc()
+        .rpc();
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2001)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2001);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'A has one constraint was violated'
-      )
+        "A has one constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Bond 1 by user - should fail (address not initialized)', async () => {
+  it("Bond 1 by user - should fail (address not initialized)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     const assetUsage1 = PublicKey.findProgramAddressSync(
       [toWeb3JsPublicKey(user_nft_leaf_schemas[0].id).toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -1303,39 +1303,39 @@ describe('core-sol-bond-stake-sc', () => {
             isWritable: false,
           },
         ])
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(3012)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(3012);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'The program expected this account to be already initialized'
-      )
+        "The program expected this account to be already initialized"
+      );
     }
-  })
+  });
 
-  it('Unpause bond program', async () => {
+  it("Unpause bond program", async () => {
     await program.methods
       .setBondStateActive(1)
       .signers([admin])
-      .accounts({bondConfig: bondConfigPda1, authority: admin.publicKey})
-      .rpc()
-  })
+      .accounts({ bondConfig: bondConfigPda1, authority: admin.publicKey })
+      .rpc();
+  });
 
-  it('Bond 1 by user - wrong bond amount (should fail)', async () => {
+  it("Bond 1 by user - wrong bond amount (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     const assetUsage1 = PublicKey.findProgramAddressSync(
       [toWeb3JsPublicKey(user_nft_leaf_schemas[0].id).toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     await program.methods
       .initializeAddress()
@@ -1345,7 +1345,7 @@ describe('core-sol-bond-stake-sc', () => {
         rewardsConfig: rewardsConfigPda,
         authority: user.publicKey,
       })
-      .rpc()
+      .rpc();
 
     try {
       await program.methods
@@ -1384,31 +1384,31 @@ describe('core-sol-bond-stake-sc', () => {
             isWritable: false,
           },
         ])
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6010)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6010);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Wrong amount'
-      )
+        "Wrong amount"
+      );
     }
-  })
+  });
 
-  it('Bond 1 by user - wrong bond id (should fail)', async () => {
+  it("Bond 1 by user - wrong bond id (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([2])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     const assetUsage1 = PublicKey.findProgramAddressSync(
       [toWeb3JsPublicKey(user_nft_leaf_schemas[0].id).toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -1447,31 +1447,31 @@ describe('core-sol-bond-stake-sc', () => {
             isWritable: false,
           },
         ])
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6011)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6011);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Wrong bond id'
-      )
+        "Wrong bond id"
+      );
     }
-  })
+  });
 
-  it('Bond 1 by user', async () => {
+  it("Bond 1 by user", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     const assetUsage1 = PublicKey.findProgramAddressSync(
       [toWeb3JsPublicKey(user_nft_leaf_schemas[0].id).toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     let x = await program.methods
       .bond(
@@ -1509,39 +1509,39 @@ describe('core-sol-bond-stake-sc', () => {
           isWritable: false,
         },
       ])
-      .rpc()
+      .rpc();
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    )
-  })
+    );
+  });
 
-  it('Bond 2 by user', async () => {
+  it("Bond 2 by user", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([2])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     const assetUsage2 = PublicKey.findProgramAddressSync(
       [toWeb3JsPublicKey(user_nft_leaf_schemas[1].id).toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     let x = await program.methods
       .bond(
@@ -1579,39 +1579,39 @@ describe('core-sol-bond-stake-sc', () => {
           isWritable: false,
         },
       ])
-      .rpc()
+      .rpc();
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    )
-  })
+    );
+  });
 
-  it('Bond 1 by user2', async () => {
+  it("Bond 1 by user2", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user2.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     const assetUsage1 = PublicKey.findProgramAddressSync(
       [toWeb3JsPublicKey(user2_nft_leaf_schemas[0].id).toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     await program.methods
       .initializeAddress()
@@ -1621,7 +1621,7 @@ describe('core-sol-bond-stake-sc', () => {
         rewardsConfig: rewardsConfigPda,
         authority: user2.publicKey,
       })
-      .rpc()
+      .rpc();
 
     let x = await program.methods
       .bond(
@@ -1659,34 +1659,34 @@ describe('core-sol-bond-stake-sc', () => {
           isWritable: false,
         },
       ])
-      .rpc()
+      .rpc();
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    )
-  })
+    );
+  });
 
-  it('Renew bond 1 by user - wrong bond (should fail)', async () => {
+  it("Renew bond 1 by user - wrong bond (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       let x = await program.methods
@@ -1700,26 +1700,26 @@ describe('core-sol-bond-stake-sc', () => {
           bond: bond1,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2006)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2006);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'A seeds constraint was violated'
-      )
+        "A seeds constraint was violated"
+      );
     }
-  })
+  });
 
-  it('Renew bond 1 by user', async () => {
+  it("Renew bond 1 by user", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     let x = await program.methods
       .renew(1, 1)
@@ -1732,34 +1732,34 @@ describe('core-sol-bond-stake-sc', () => {
         bond: bond1,
         authority: user.publicKey,
       })
-      .rpc()
+      .rpc();
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    )
-  })
+    );
+  });
 
-  it('TopUp bond 2 by user - bond not vault (should fail)', async () => {
+  it("TopUp bond 2 by user - bond not vault (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([2])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       let x = await program.methods
@@ -1776,25 +1776,25 @@ describe('core-sol-bond-stake-sc', () => {
           authority: user.publicKey,
           authorityTokenAccount: itheum_token_user_ata,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6015)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6015);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Bond is not a vault'
-      )
+        "Bond is not a vault"
+      );
     }
-  })
-  it('TopUp bond 1 by user - wrong mint of token (should fail)', async () => {
+  });
+  it("TopUp bond 1 by user - wrong mint of token (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       let x = await program.methods
@@ -1811,26 +1811,26 @@ describe('core-sol-bond-stake-sc', () => {
           authority: user.publicKey,
           authorityTokenAccount: itheum_token_user_ata,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6006)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6006);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Mint mismatch'
-      )
+        "Mint mismatch"
+      );
     }
-  })
+  });
 
-  it('TopUp bond 1 by user - wrong user accounts (should fail)', async () => {
+  it("TopUp bond 1 by user - wrong user accounts (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user2.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       let x = await program.methods
@@ -1847,26 +1847,26 @@ describe('core-sol-bond-stake-sc', () => {
           authority: user.publicKey,
           authorityTokenAccount: itheum_token_user_ata,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2006)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(2006);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'A seeds constraint was violated'
-      )
+        "A seeds constraint was violated"
+      );
     }
-  })
+  });
 
-  it('TopUp bond 1 by user', async () => {
+  it("TopUp bond 1 by user", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     let x = await program.methods
       .topUp(1, 1, new anchor.BN(100e9))
@@ -1882,33 +1882,33 @@ describe('core-sol-bond-stake-sc', () => {
         authority: user.publicKey,
         authorityTokenAccount: itheum_token_user_ata,
       })
-      .rpc()
+      .rpc();
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    )
-  })
-  it('Withdraw bond 1 by user', async () => {
+    );
+  });
+  it("Withdraw bond 1 by user", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     let x = await program.methods
       .withdraw(1, 1)
@@ -1924,40 +1924,40 @@ describe('core-sol-bond-stake-sc', () => {
         authority: user.publicKey,
         authorityTokenAccount: itheum_token_user_ata,
       })
-      .rpc({skipPreflight: true})
+      .rpc();
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
-    const tolerance = normalWeighted * 0.001
-    const lowerBound = normalWeighted - tolerance
-    const upperBound = normalWeighted + tolerance
+    const tolerance = normalWeighted * 0.001;
+    const lowerBound = normalWeighted - tolerance;
+    const upperBound = normalWeighted + tolerance;
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
         addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
       `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
-    )
-  })
+    );
+  });
 
-  it('Withdraw bond 1 by user - already withdrawn (should fail)', async () => {
+  it("Withdraw bond 1 by user - already withdrawn (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -1974,26 +1974,26 @@ describe('core-sol-bond-stake-sc', () => {
           authority: user.publicKey,
           authorityTokenAccount: itheum_token_user_ata,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6014)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6014);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Bond is inactive'
-      )
+        "Bond is inactive"
+      );
     }
-  })
+  });
 
-  it('Top up bond 1 by user - bond inactive (should fail)', async () => {
+  it("Top up bond 1 by user - bond inactive (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -2010,25 +2010,25 @@ describe('core-sol-bond-stake-sc', () => {
           authority: user.publicKey,
           authorityTokenAccount: itheum_token_user_ata,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6014)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6014);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Bond is inactive'
-      )
+        "Bond is inactive"
+      );
     }
-  })
-  it('Renew bond 1 by user - bond inactive (should fail)', async () => {
+  });
+  it("Renew bond 1 by user - bond inactive (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     try {
       await program.methods
@@ -2042,17 +2042,17 @@ describe('core-sol-bond-stake-sc', () => {
           bond: bond1,
           authority: user.publicKey,
         })
-        .rpc()
-      assert(false, 'Should have thrown error')
+        .rpc();
+      assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6014)
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6014);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        'Bond is inactive'
-      )
+        "Bond is inactive"
+      );
     }
-  })
+  });
 
-  it('Update rewards per slot by admin', async () => {
+  it("Update rewards per slot by admin", async () => {
     await program.methods
       .updateRewardsPerSlot(new anchor.BN(1e6))
       .signers([admin])
@@ -2060,46 +2060,46 @@ describe('core-sol-bond-stake-sc', () => {
         rewardsConfig: rewardsConfigPda,
         authority: admin.publicKey,
       })
-      .rpc()
-  })
+      .rpc();
+  });
 
-  it('Activate rewards by admin', async () => {
+  it("Activate rewards by admin", async () => {
     await program.methods
       .updateMaxApr(new anchor.BN(0))
       .signers([admin])
-      .accounts({rewardsConfig: rewardsConfigPda, authority: admin.publicKey})
-      .rpc()
+      .accounts({ rewardsConfig: rewardsConfigPda, authority: admin.publicKey })
+      .rpc();
 
     let x = await program.methods
       .setRewardsStateActive()
       .signers([admin])
-      .accounts({rewardsConfig: rewardsConfigPda, authority: admin.publicKey})
-      .rpc()
+      .accounts({ rewardsConfig: rewardsConfigPda, authority: admin.publicKey })
+      .rpc();
 
-    let newConn = new Connection('http://localhost:8899', 'confirmed')
+    let newConn = new Connection("http://localhost:8899", "confirmed");
 
-    let sigStatus = await newConn.getSignatureStatus(x)
+    let sigStatus = await newConn.getSignatureStatus(x);
 
-    activation_slot = sigStatus.context.slot
-  })
+    activation_slot = sigStatus.context.slot;
+  });
 
-  it('Check user rewards - (renew bond 2 by user)', async () => {
+  it("Check user rewards - (renew bond 2 by user)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([2])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
       program.programId
-    )[0]
+    )[0];
 
     let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(userBondsRewards)
+      await program.account.addressBondsRewards.fetch(userBondsRewards);
 
     let userBondsBefore = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     let x = await program.methods
       .renew(1, 2)
@@ -2112,36 +2112,36 @@ describe('core-sol-bond-stake-sc', () => {
         bond: bond2,
         authority: user.publicKey,
       })
-      .rpc({skipPreflight: true})
+      .rpc({ skipPreflight: true });
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    )
+    );
 
     let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
     let total_rewards = await calculateTotalRewardsInInterval(
       activation_slot,
       rewardsConfigPda,
       program
-    )
+    );
 
     let userRewardsAcc = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     let user_rewards = await calculateUserRewards(
       normalWeighted,
@@ -2150,34 +2150,34 @@ describe('core-sol-bond-stake-sc', () => {
       rewardsConfigPda,
       true,
       program
-    )
+    );
 
     assert(
       addressRewardsAccBefore.claimableAmount.toNumber() +
         user_rewards / 10 ** 9 ===
         userRewardsAcc.claimableAmount.toNumber()
-    )
+    );
 
-    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards)
-  })
+    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards);
+  });
 
-  it('Check user2 rewards - (renew bond 1 by user2)', async () => {
+  it("Check user2 rewards - (renew bond 1 by user2)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user2.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(userBondsRewards)
+      await program.account.addressBondsRewards.fetch(userBondsRewards);
 
     let userBondsBefore = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     let x = await program.methods
       .renew(1, 1)
@@ -2190,36 +2190,36 @@ describe('core-sol-bond-stake-sc', () => {
         bond: bond1,
         authority: user2.publicKey,
       })
-      .rpc({skipPreflight: true})
+      .rpc({ skipPreflight: true });
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    )
+    );
 
     let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
     let total_rewards = await calculateTotalRewardsInInterval(
       activation_slot,
       rewardsConfigPda,
       program
-    )
+    );
 
     let userRewardsAcc = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     let user_rewards = await calculateUserRewards(
       normalWeighted,
@@ -2228,39 +2228,39 @@ describe('core-sol-bond-stake-sc', () => {
       rewardsConfigPda,
       true,
       program
-    )
+    );
 
     assert(
       addressRewardsAccBefore.claimableAmount.toNumber() +
         user_rewards / 10 ** 9 ===
         userRewardsAcc.claimableAmount.toNumber()
-    )
+    );
 
-    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards)
-  })
+    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards);
+  });
 
-  it('Check user rewards - bond 3 by user', async () => {
+  it("Check user rewards - bond 3 by user", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const assetUsage3 = PublicKey.findProgramAddressSync(
       [toWeb3JsPublicKey(user_nft_leaf_schemas[2].id).toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond3 = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user.publicKey.toBuffer(), Buffer.from([3])],
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([3])],
       program.programId
-    )[0]
+    )[0];
 
     let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(userBondsRewards)
+      await program.account.addressBondsRewards.fetch(userBondsRewards);
 
     let userBondsBefore = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     let x = await program.methods
       .bond(
@@ -2298,32 +2298,32 @@ describe('core-sol-bond-stake-sc', () => {
           isWritable: false,
         },
       ])
-      .rpc()
+      .rpc();
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       userBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
-    const tolerance = normalWeighted * 0.0001
-    const lowerBound = normalWeighted - tolerance
-    const upperBound = normalWeighted + tolerance
+    const tolerance = normalWeighted * 0.0001;
+    const lowerBound = normalWeighted - tolerance;
+    const upperBound = normalWeighted + tolerance;
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
         addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
       `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
-    )
+    );
 
     let userRewardsAcc = await program.account.addressBondsRewards.fetch(
       userBondsRewards
-    )
+    );
 
     let user_rewards = await calculateUserRewards(
       addressBondsFetched.weightedLivelinessScore.toNumber(),
@@ -2332,38 +2332,38 @@ describe('core-sol-bond-stake-sc', () => {
       rewardsConfigPda,
       true,
       program
-    )
+    );
 
     assert(
       addressRewardsAccBefore.claimableAmount.toNumber() +
         user_rewards / 10 ** 9 ===
         userRewardsAcc.claimableAmount.toNumber()
-    )
-  })
+    );
+  });
 
-  it('Stake rewards user2', async () => {
+  it("Stake rewards user2", async () => {
     const addressBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user2.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user2.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     const bond = PublicKey.findProgramAddressSync(
-      [Buffer.from('bond'), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
       program.programId
-    )[0]
+    )[0];
 
     let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
       rewardsConfigPda
-    )
+    );
 
     let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(addressBondsRewards)
+      await program.account.addressBondsRewards.fetch(addressBondsRewards);
 
-    let bondBefore = await program.account.bond.fetch(bond)
+    let bondBefore = await program.account.bond.fetch(bond);
 
     let userBondsBefore = await program.account.addressBondsRewards.fetch(
       addressBondsRewards
-    )
+    );
 
     let x = await program.methods
       .stakeRewards(1, 1)
@@ -2376,34 +2376,34 @@ describe('core-sol-bond-stake-sc', () => {
         bond: bond,
         authority: user2.publicKey,
       })
-      .rpc()
+      .rpc();
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,
       addressBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       addressBondsRewards
-    )
+    );
 
-    const tolerance = normalWeighted * 0.0001
-    const lowerBound = normalWeighted - tolerance
-    const upperBound = normalWeighted + tolerance
+    const tolerance = normalWeighted * 0.0001;
+    const lowerBound = normalWeighted - tolerance;
+    const upperBound = normalWeighted + tolerance;
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
         addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
       `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
-    )
+    );
 
     let userRewardsAcc = await program.account.addressBondsRewards.fetch(
       addressBondsRewards
-    )
+    );
 
-    let bondAfter = await program.account.bond.fetch(bond)
+    let bondAfter = await program.account.bond.fetch(bond);
 
     let user_rewards = await calculateUserRewards(
       addressBondsFetched.weightedLivelinessScore.toNumber(),
@@ -2412,32 +2412,32 @@ describe('core-sol-bond-stake-sc', () => {
       rewardsConfigPda,
       false,
       program
-    )
+    );
 
     assert(
       addressRewardsAccBefore.claimableAmount.toNumber() +
         user_rewards / 10 ** 9 +
         bondBefore.bondAmount.toNumber() ===
         bondAfter.bondAmount.toNumber()
-    )
-    assert(userRewardsAcc.claimableAmount.toNumber() === 0)
-  })
+    );
+    assert(userRewardsAcc.claimableAmount.toNumber() === 0);
+  });
 
-  it('Claim rewards user', async () => {
+  it("Claim rewards user", async () => {
     const addressBondsRewards = PublicKey.findProgramAddressSync(
-      [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
-    )[0]
+    )[0];
 
     let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(addressBondsRewards)
+      await program.account.addressBondsRewards.fetch(addressBondsRewards);
     let userBondsBefore = await program.account.addressBondsRewards.fetch(
       addressBondsRewards
-    )
+    );
 
     let user_balance_before = await provider.connection.getTokenAccountBalance(
       itheum_token_user_ata
-    )
+    );
 
     let x = await program.methods
       .claimRewards(1)
@@ -2452,28 +2452,28 @@ describe('core-sol-bond-stake-sc', () => {
         authority: user.publicKey,
         authorityTokenAccount: itheum_token_user_ata,
       })
-      .rpc()
+      .rpc();
 
     let normalWeighted = await calculateWeightedLivelinessScore(
       x,
       addressBondsRewards,
       bondConfigPda1,
       program
-    )
+    );
 
     let addressBondsFetched = await program.account.addressBondsRewards.fetch(
       addressBondsRewards
-    )
+    );
 
-    const tolerance = normalWeighted * 0.0001
-    const lowerBound = normalWeighted - tolerance
-    const upperBound = normalWeighted + tolerance
+    const tolerance = normalWeighted * 0.0001;
+    const lowerBound = normalWeighted - tolerance;
+    const upperBound = normalWeighted + tolerance;
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
         addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
       `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
-    )
+    );
 
     let user_rewards = await calculateUserRewards(
       addressBondsFetched.weightedLivelinessScore.toNumber(),
@@ -2482,28 +2482,28 @@ describe('core-sol-bond-stake-sc', () => {
       rewardsConfigPda,
       false,
       program
-    )
+    );
 
     let user_balance_after = await provider.connection.getTokenAccountBalance(
       itheum_token_user_ata
-    )
+    );
 
     assert(
       addressRewardsAccBefore.claimableAmount.toNumber() +
         user_rewards / 10 ** 9 +
         Number(user_balance_before.value.amount) ===
         Number(user_balance_after.value.amount)
-    )
+    );
 
     let addressRewardsAccAfter =
-      await program.account.addressBondsRewards.fetch(addressBondsRewards)
+      await program.account.addressBondsRewards.fetch(addressBondsRewards);
 
-    assert(addressRewardsAccAfter.claimableAmount.toNumber() === 0)
-  })
-})
+    assert(addressRewardsAccAfter.claimableAmount.toNumber() === 0);
+  });
+});
 
 function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function calculateTotalRewardsInInterval(
@@ -2513,13 +2513,13 @@ async function calculateTotalRewardsInInterval(
 ) {
   let rewards_config = await program.account.rewardsConfig.fetch(
     rewardsConfigPda
-  )
+  );
 
-  let slots = rewards_config.lastRewardSlot.toNumber() - previous_slot
+  let slots = rewards_config.lastRewardSlot.toNumber() - previous_slot;
 
-  let total_rewards = rewards_config.rewardsPerSlot.mul(new anchor.BN(slots))
+  let total_rewards = rewards_config.rewardsPerSlot.mul(new anchor.BN(slots));
 
-  return total_rewards.toNumber()
+  return total_rewards.toNumber();
 }
 
 // calculate user rewards based on the total rewards
@@ -2531,16 +2531,16 @@ async function calculateUserRewards(
   bypassLiveliness: boolean,
   program: anchor.Program<CoreSolBondStakeSc>
 ) {
-  const rewardsAcc = await program.account.rewardsConfig.fetch(rewards_config)
+  const rewardsAcc = await program.account.rewardsConfig.fetch(rewards_config);
 
   let user_rewards = address_last_total_bond_amount.mul(
     rewardsAcc.rewardsPerShare.sub(address_last_rewards_per_share)
-  )
+  );
 
   if (normalWeighted >= 9500 || bypassLiveliness) {
-    return user_rewards.toNumber()
+    return user_rewards.toNumber();
   } else {
-    return (user_rewards.toNumber() * normalWeighted) / 10000
+    return (user_rewards.toNumber() * normalWeighted) / 10000;
   }
 }
 
@@ -2550,57 +2550,57 @@ async function calculateWeightedLivelinessScore(
   bondsConfigPda: PublicKey,
   program: anchor.Program<CoreSolBondStakeSc>
 ) {
-  let newConn = new Connection('http://localhost:8899', 'confirmed')
+  let newConn = new Connection("http://localhost:8899", "confirmed");
 
-  let sigStatus = await newConn.getSignatureStatus(signature)
+  let sigStatus = await newConn.getSignatureStatus(signature);
 
-  let blockTime = await newConn.getBlockTime(sigStatus.context.slot)
+  let blockTime = await newConn.getBlockTime(sigStatus.context.slot);
   if (!blockTime) {
-    throw new Error('Unable to fetch block time for the provided slot')
+    throw new Error("Unable to fetch block time for the provided slot");
   }
 
-  let current_timestamp = blockTime
+  let current_timestamp = blockTime;
 
   const userBondsAcc = await program.account.addressBondsRewards.fetch(
     userBondsPda
-  )
+  );
 
-  const bondConfigAcc = await program.account.bondConfig.fetch(bondsConfigPda)
+  const bondConfigAcc = await program.account.bondConfig.fetch(bondsConfigPda);
 
-  let totalBondAmount = new anchor.BN(0)
-  let totalBondWeight = new anchor.BN(0)
+  let totalBondAmount = new anchor.BN(0);
+  let totalBondWeight = new anchor.BN(0);
 
   for (let bond_id = 1; bond_id <= userBondsAcc.currentIndex; bond_id++) {
     const bond_pda = PublicKey.findProgramAddressSync(
       [
-        Buffer.from('bond'),
+        Buffer.from("bond"),
         userBondsAcc.address.toBuffer(),
         Buffer.from([bond_id]),
       ],
       program.programId
-    )[0]
+    )[0];
 
-    const bondAcc = await program.account.bond.fetch(bond_pda)
+    const bondAcc = await program.account.bond.fetch(bond_pda);
 
     if (bondAcc.state === 0) {
-      continue
+      continue;
     }
 
     const score = computeBondScore(
       bondConfigAcc.lockPeriod.toNumber(),
       current_timestamp,
       bondAcc.unbondTimestamp.toNumber()
-    )
+    );
 
-    const bond_weight = bondAcc.bondAmount.mul(new anchor.BN(score))
-    totalBondWeight = totalBondWeight.add(bond_weight)
+    const bond_weight = bondAcc.bondAmount.mul(new anchor.BN(score));
+    totalBondWeight = totalBondWeight.add(bond_weight);
 
-    totalBondAmount = totalBondAmount.add(bondAcc.bondAmount)
+    totalBondAmount = totalBondAmount.add(bondAcc.bondAmount);
   }
 
-  const weighted_score = totalBondWeight.div(totalBondAmount)
+  const weighted_score = totalBondWeight.div(totalBondAmount);
 
-  return weighted_score.toNumber()
+  return weighted_score.toNumber();
 }
 
 function computeBondScore(
@@ -2609,15 +2609,15 @@ function computeBondScore(
   unbondTimestamp: number
 ): number {
   if (currentTimestamp >= unbondTimestamp) {
-    return 0
+    return 0;
   } else {
-    const difference = unbondTimestamp - currentTimestamp
+    const difference = unbondTimestamp - currentTimestamp;
 
     if (lockPeriod === 0) {
-      return 0
+      return 0;
     } else {
-      const divResult = Math.floor(10000 / lockPeriod)
-      return divResult * difference
+      const divResult = Math.floor(10000 / lockPeriod);
+      return divResult * difference;
     }
   }
 }

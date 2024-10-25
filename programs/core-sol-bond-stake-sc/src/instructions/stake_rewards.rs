@@ -106,7 +106,6 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
     } else {
         0
     };
-    let bond_to_be_subtracted = bond.bond_amount;
 
     let actual_claimable_amount;
 
@@ -123,23 +122,21 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
     bond.bond_timestamp = current_timestamp;
     bond.bond_amount += &actual_claimable_amount;
 
-    address_bonds_rewards.address_total_bond_amount += actual_claimable_amount;
     vault_config.total_bond_amount += &actual_claimable_amount;
 
     address_bonds_rewards.claimable_amount = 0;
 
     let weight_to_be_added = bond.bond_amount * MAX_PERCENT;
-    let bond_to_be_added: u64 = bond.bond_amount;
 
     let weighted_liveliness_score_new = compute_weighted_liveliness_new(
         weighted_liveliness_score_decayed,
         address_bonds_rewards.address_total_bond_amount,
+        address_bonds_rewards.address_total_bond_amount + actual_claimable_amount,
         weight_to_be_added,
         weight_to_be_subtracted,
-        bond_to_be_added,
-        bond_to_be_subtracted,
     );
 
+    address_bonds_rewards.address_total_bond_amount += actual_claimable_amount;
     address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
     address_bonds_rewards.last_update_timestamp = current_timestamp;
 

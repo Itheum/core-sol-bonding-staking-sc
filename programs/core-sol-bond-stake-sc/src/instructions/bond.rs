@@ -126,7 +126,6 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     let current_timestamp = get_current_timestamp()?;
 
     let weight_to_be_added = amount * MAX_PERCENT;
-    let bond_to_be_added = amount;
 
     let decay = compute_decay(
         ctx.accounts.address_bonds_rewards.last_update_timestamp,
@@ -145,40 +144,40 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
         &mut ctx.accounts.address_bonds_rewards,
     )?;
 
+    let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
+
     let weighted_liveliness_score_new = compute_weighted_liveliness_new(
         weighted_liveliness_score_decayed,
-        ctx.accounts.address_bonds_rewards.address_total_bond_amount,
+        address_bonds_rewards.address_total_bond_amount,
+        address_bonds_rewards.address_total_bond_amount + amount,
         weight_to_be_added,
-        0,
-        bond_to_be_added,
         0,
     );
 
-    let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
-
     address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
     address_bonds_rewards.last_update_timestamp = current_timestamp;
+    address_bonds_rewards.address_total_bond_amount += amount;
 
     // check leaf owner here
     let asset_id = get_asset_id(&ctx.accounts.merkle_tree.key(), nonce);
 
-    let leaf = LeafSchema::V1 {
-        id: asset_id,
-        owner: ctx.accounts.authority.key(),
-        delegate: ctx.accounts.authority.key(),
-        nonce,
-        data_hash,
-        creator_hash,
-    };
-    let cpi_ctx = CpiContext::new(
-        ctx.accounts.compression_program.to_account_info(),
-        spl_account_compression::cpi::accounts::VerifyLeaf {
-            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
-        },
-    )
-    .with_remaining_accounts(ctx.remaining_accounts.to_vec());
+    // let leaf = LeafSchema::V1 {
+    //     id: asset_id,
+    //     owner: ctx.accounts.authority.key(),
+    //     delegate: ctx.accounts.authority.key(),
+    //     nonce,
+    //     data_hash,
+    //     creator_hash,
+    // };
+    // let cpi_ctx = CpiContext::new(
+    //     ctx.accounts.compression_program.to_account_info(),
+    //     spl_account_compression::cpi::accounts::VerifyLeaf {
+    //         merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+    //     },
+    // )
+    // .with_remaining_accounts(ctx.remaining_accounts.to_vec());
 
-    spl_account_compression::cpi::verify_leaf(cpi_ctx, root, leaf.hash(), nonce as u32)?;
+    // spl_account_compression::cpi::verify_leaf(cpi_ctx, root, leaf.hash(), nonce as u32)?;
 
     let current_timestamp = get_current_timestamp()?;
 
@@ -205,7 +204,6 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
         ctx.accounts.mint_of_token_sent.decimals,
     )?;
 
-    address_bonds_rewards.address_total_bond_amount += amount;
     address_bonds_rewards.current_index = bond_id;
     ctx.accounts.vault_config.total_bond_amount += amount;
 
