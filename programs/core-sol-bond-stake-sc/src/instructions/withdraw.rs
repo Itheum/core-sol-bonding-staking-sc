@@ -119,8 +119,6 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
         0
     };
 
-    let bond_amount_to_be_subtracted = bond.bond_amount;
-
     let decay = compute_decay(
         ctx.accounts.address_bonds_rewards.last_update_timestamp,
         current_timestamp,
@@ -138,17 +136,17 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
         &mut ctx.accounts.address_bonds_rewards,
     )?;
 
-    let weighted_liveliness_score_new = compute_weighted_liveliness_new(
-        weighted_liveliness_score_decayed,
-        ctx.accounts.address_bonds_rewards.address_total_bond_amount,
-        0,
-        weight_to_be_subtracted,
-        0,
-        bond_amount_to_be_subtracted,
-    );
-
     let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
 
+    let weighted_liveliness_score_new = compute_weighted_liveliness_new(
+        weighted_liveliness_score_decayed,
+        address_bonds_rewards.address_total_bond_amount,
+        address_bonds_rewards.address_total_bond_amount - bond.bond_amount,
+        0,
+        weight_to_be_subtracted,
+    );
+
+    address_bonds_rewards.address_total_bond_amount -= bond.bond_amount;
     address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
     address_bonds_rewards.last_update_timestamp = current_timestamp;
 
@@ -178,8 +176,6 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
         bond.bond_amount - penalty,
         ctx.accounts.mint_of_token_to_receive.decimals,
     )?;
-
-    address_bonds_rewards.address_total_bond_amount -= bond.bond_amount;
 
     bond.state = State::Inactive.to_code();
     bond.unbond_timestamp = current_timestamp;

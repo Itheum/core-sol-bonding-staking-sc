@@ -1924,7 +1924,7 @@ describe('core-sol-bond-stake-sc', () => {
         authority: user.publicKey,
         authorityTokenAccount: itheum_token_user_ata,
       })
-      .rpc({skipPreflight: true})
+      .rpc()
 
     const normalWeighted = await calculateWeightedLivelinessScore(
       x,

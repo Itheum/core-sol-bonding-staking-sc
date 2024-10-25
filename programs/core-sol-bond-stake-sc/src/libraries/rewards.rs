@@ -131,17 +131,16 @@ pub fn compute_weighted_liveliness_decay(weighted_liveliness_score: u64, decay: 
 
 pub fn compute_weighted_liveliness_new(
     weighted_liveliness_score_decayed: u64,
-    address_total_bond_amount: u64,
+    address_total_bond_amount_before: u64,
+    address_totaal_bond_amount_after: u64,
     weight_to_be_added: u64,
     weight_to_be_subtracted: u64,
-    bond_to_be_added: u64,
-    bond_to_be_subtracted: u64,
 ) -> u64 {
     let new = (weighted_liveliness_score_decayed
-        .saturating_mul(address_total_bond_amount)
+        .saturating_mul(address_total_bond_amount_before)
         .saturating_sub(weight_to_be_subtracted)
         .saturating_add(weight_to_be_added))
-    .saturating_div(address_total_bond_amount + bond_to_be_added - bond_to_be_subtracted);
+    .saturating_div(address_totaal_bond_amount_after);
 
     new
 }

@@ -104,7 +104,7 @@ pub fn top_up<'a, 'b, 'c: 'info, 'info>(
     let current_timestamp = get_current_timestamp()?;
 
     let weight_to_be_added = (bond.bond_amount + amount) * MAX_PERCENT;
-    let bond_to_be_added = amount;
+
     let weight_to_be_subtracted = if current_timestamp < bond.unbond_timestamp {
         bond.bond_amount
             .mul_div_floor(
@@ -134,20 +134,20 @@ pub fn top_up<'a, 'b, 'c: 'info, 'info>(
         &mut ctx.accounts.address_bonds_rewards,
     )?;
 
+    let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
+
     let weighted_liveliness_score_new = compute_weighted_liveliness_new(
         weighted_liveliness_score_decayed,
-        ctx.accounts.address_bonds_rewards.address_total_bond_amount,
+        address_bonds_rewards.address_total_bond_amount,
+        address_bonds_rewards.address_total_bond_amount + amount,
         weight_to_be_added,
         weight_to_be_subtracted,
-        bond_to_be_added,
-        0,
     );
 
-    let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
+    address_bonds_rewards.address_total_bond_amount += amount;
 
     address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
     address_bonds_rewards.last_update_timestamp = current_timestamp;
-    address_bonds_rewards.address_total_bond_amount += amount;
 
     let vault_config = &mut ctx.accounts.vault_config;
     vault_config.total_bond_amount += amount;

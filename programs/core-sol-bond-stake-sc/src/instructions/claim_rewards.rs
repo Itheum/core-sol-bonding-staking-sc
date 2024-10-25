@@ -95,15 +95,6 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
         decay,
     );
 
-    let weighted_liveliness_score_new = compute_weighted_liveliness_new(
-        weighted_liveliness_score_decayed,
-        ctx.accounts.address_bonds_rewards.address_total_bond_amount,
-        0,
-        0,
-        0,
-        0,
-    );
-
     update_address_claimable_rewards(
         &mut ctx.accounts.rewards_config,
         &ctx.accounts.vault_config,
@@ -127,6 +118,14 @@ pub fn claim_rewards<'a, 'b, 'c: 'info, 'info>(
             .mul_div_floor(weighted_liveliness_score_decayed, MAX_PERCENT)
             .unwrap();
     }
+
+    let weighted_liveliness_score_new = compute_weighted_liveliness_new(
+        weighted_liveliness_score_decayed,
+        address_bonds_rewards.address_total_bond_amount,
+        address_bonds_rewards.address_total_bond_amount,
+        0,
+        0,
+    );
 
     address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
     address_bonds_rewards.last_update_timestamp = current_timestamp;
