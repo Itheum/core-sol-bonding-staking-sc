@@ -202,4 +202,10 @@ $ anchor test
 
 Configure your deployed contract using the interactions node script.
 
-Go into the interactions Folder, and run the script as `bun index.ts` as you comment out sections you want to run. We use `bun` so you can run the TS files. You can also use `npx ts-node index.ts `
+Go into the interactions Folder, and run the script as `bun index.ts` as you comment out sections you want to run. We use `bun` so you can run the TS files. You can also use `npx ts-node index.ts `. Note that sometimes some commands can fail with an error like "TokenAccountNotFound" -- this may just be due to congestion, so try again or add some "sleeps" between tasks.
+
+## Upgrade contract
+
+- Update your code as needed and then run `anchor build`
+- Then make sure `Anchor.toml` has the right settings for your target environment and keys
+- Then `anchor deploy`

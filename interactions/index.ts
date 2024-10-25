@@ -46,7 +46,7 @@ const mapProof = (proof: string[]): AccountMeta[] => {
 };
 
 const ITHEUM_TOKEN = process.env.ITHEUM_TOKEN;
-const programId = new PublicKey("4nvez1kVuTbeeMBzXkuUfDvFNLuSraAqbxK5NypRMvtM");
+const programId = new PublicKey("2sr4qeqsgTGQBdYRWSfaScapUfpB2JGtgiKjVEnneuKS");
 const connection = new Connection(
   clusterApiUrl(process.env.CLUSTER_URL as Cluster),
   "confirmed"
@@ -91,7 +91,7 @@ const initializeContract = async () => {
     .accounts({
       bondConfig: bondConfigPda1,
       rewardsConfig: rewardsConfigPda,
-      merkleTree: new PublicKey("GpseMQCGcVHt2QxhieSGiEsuS6G5sKpEHeAWYwUx5z5c"), // Replace with your actual merkle tree address
+      merkleTree: new PublicKey("3KcpbXsmTBP9eZRXSUsRkE4uxNaRho85qmSRnnZR2VvE"), // Replace with your actual merkle tree address
       authority: admin.publicKey, // The admin will act as the authority
     })
     .transaction();
@@ -271,25 +271,97 @@ const setRewardsStateInactive = async () => {
 
 // setRewardsStateInactive();
 
+const changeLockPeriod = async (index: number, lockPeriod: number) => {
+  const tx = await program.methods
+    .updateLockPeriod(index, new anchor.BN(lockPeriod))
+    .signers([admin])
+    .accounts({
+      bondConfig: bondConfigPda1,
+      authority: admin.publicKey,
+    })
+    .transaction();
+
+  const transactionSignature = await connection.sendTransaction(tx, [admin]);
+
+  console.log(transactionSignature);
+};
+
+changeLockPeriod(1, 10800);
+// Lock period (half a day) 43200 sec is 12 hours
+
+const changeMerkleTree = async (index: number, merkleTree: string) => {
+  const tx = await program.methods
+    .updateMerkleTree(index, new PublicKey(merkleTree))
+    .signers([admin])
+    .accounts({
+      bondConfig: bondConfigPda1,
+      authority: admin.publicKey,
+    })
+    .transaction();
+
+  const transactionSignature = await connection.sendTransaction(tx, [admin]);
+
+  console.log(transactionSignature);
+};
+
+// changeMerkleTree(1, "XXXX");
+
+const changeBondAmount = async (index: number, bondAmount: number) => {
+  const tx = await program.methods
+    .updateBondAmount(index, new anchor.BN(bondAmount))
+    .signers([admin])
+    .accounts({
+      bondConfig: bondConfigPda1,
+      authority: admin.publicKey,
+    })
+    .transaction();
+
+  const transactionSignature = await connection.sendTransaction(tx, [admin]);
+
+  console.log(transactionSignature);
+};
+
+// changeBondAmount(1, 1000e9);
+// Bonding amount (1000e9 = 1000 ITHEUM)
+
+const changeWithdrawPenalty = async (index: number, penalty: number) => {
+  const tx = await program.methods
+    .updateWithdrawPenalty(index, new anchor.BN(penalty))
+    .signers([admin])
+    .accounts({
+      bondConfig: bondConfigPda1,
+      authority: admin.publicKey,
+    })
+    .transaction();
+
+  const transactionSignature = await connection.sendTransaction(tx, [admin]);
+
+  console.log(transactionSignature);
+};
+
+// changeWithdrawPenalty(1, 1000);
+// Withdraw penalty in % (8000 is 80%)
+
+/*
 // Below are some manual testing scripts.
 const object_response =
-  '{"assetId":"F1h2kBVpb3bPeNYiMAQxUBrURxNXtjV25B6He9S63Xre","leafSchema":{"__kind":"V1","id":"F1h2kBVpb3bPeNYiMAQxUBrURxNXtjV25B6He9S63Xre","owner":"7jwJ1V27b91GoeWNuNcjVVZy2kv4PUab6MyZoKcwZy5o","delegate":"7jwJ1V27b91GoeWNuNcjVVZy2kv4PUab6MyZoKcwZy5o","nonce":28,"dataHash":{"0":69,"1":204,"2":218,"3":52,"4":77,"5":10,"6":199,"7":233,"8":245,"9":87,"10":127,"11":45,"12":212,"13":64,"14":124,"15":209,"16":147,"17":64,"18":243,"19":252,"20":90,"21":115,"22":189,"23":33,"24":9,"25":156,"26":190,"27":136,"28":242,"29":182,"30":253,"31":37},"creatorHash":{"0":77,"1":213,"2":154,"3":225,"4":97,"5":203,"6":74,"7":63,"8":198,"9":140,"10":244,"11":87,"12":144,"13":15,"14":74,"15":46,"16":161,"17":9,"18":203,"19":202,"20":242,"21":175,"22":172,"23":151,"24":43,"25":195,"26":151,"27":143,"28":107,"29":138,"30":102,"31":27}},"index":28,"root":[153,5,27,166,131,202,163,237,254,166,244,131,17,183,239,54,26,192,126,177,64,187,189,26,220,44,163,70,99,162,241,134],"proof":{"root":"BJKtvp9MjxNT7M5cpJ5vsEwP9i6qupkThTUWZHEk8ni1","proof":["11111111111111111111111111111111","Cf5tmmFZ4D31tviuJezHdFLf5WF7yFvzfxNyftKsqTwr","DJ1kkERH23xtXVC5w4JM8VuLaGBFMSzjnEhu8ds6BiWR","7kieKvZEkYzsP2KFniw1R94R5xLtxiQEfn1jJY9qrb6a","CX6YjLNphY2mUgDCt2MSWGUWmDB8aoJEoRiabxFgjQDb","zLUDhASAn7WA1Aqc724azRpZjKCjMQNATApe74JMg8C","ABnEXHmveD6iuMwfw2po7t6TPjn5kYMVwYJMi3fa9K91","JDh7eiWiUWtiWn623iybHqjQ6AQ6c2Czz8m6ZxwSCkta","BFvmeiEuzAYcMR8YxcuCMGYPDpjcmP5hsNbcswgQ8pMc","EvxphsdRErrDMs9nhFfF4nzq8i1C2KSogA7uB96TPpPR","HpMJWAzQv9HFgHBqY1o8V1B27sCYPFHJdGivDA658jEL","HjnrJn5vBUUzpCxzjjM9ZnCPuXei2cXKJjX468B9yWD7","4YCF1CSyTXm1Yi9W9JeYevawupkomdgy2dLxEBHL9euq","E3oMtCuPEauftdZLX8EZ8YX7BbFzpBCVRYEiLxwPJLY2"],"node_index":16412,"leaf":"BTVmcRPBuutDxfGhxcCXGHdgHCEhZrvdxj36CFG7arzt","tree_id":"GpseMQCGcVHt2QxhieSGiEsuS6G5sKpEHeAWYwUx5z5c"}}';
+  '{"assetId":"F1h2kBVpb3bPeNYiMAQxUBrURxNXtjV25B6He9S63Xre","leafSchema":{"__kind":"V1","id":"F1h2kBVpb3bPeNYiMAQxUBrURxNXtjV25B6He9S63Xre","owner":"7jwJ1V27b91GoeWNuNcjVVZy2kv4PUab6MyZoKcwZy5o","delegate":"7jwJ1V27b91GoeWNuNcjVVZy2kv4PUab6MyZoKcwZy5o","nonce":28,"dataHash":{"0":69,"1":204,"2":218,"3":52,"4":77,"5":10,"6":199,"7":233,"8":245,"9":87,"10":127,"11":45,"12":212,"13":64,"14":124,"15":209,"16":147,"17":64,"18":243,"19":252,"20":90,"21":115,"22":189,"23":33,"24":9,"25":156,"26":190,"27":136,"28":242,"29":182,"30":253,"31":37},"creatorHash":{"0":77,"1":213,"2":154,"3":225,"4":97,"5":203,"6":74,"7":63,"8":198,"9":140,"10":244,"11":87,"12":144,"13":15,"14":74,"15":46,"16":161,"17":9,"18":203,"19":202,"20":242,"21":175,"22":172,"23":151,"24":43,"25":195,"26":151,"27":143,"28":107,"29":138,"30":102,"31":27}},"index":28,"root":[153,5,27,166,131,202,163,237,254,166,244,131,17,183,239,54,26,192,126,177,64,187,189,26,220,44,163,70,99,162,241,134],"proof":{"root":"BJKtvp9MjxNT7M5cpJ5vsEwP9i6qupkThTUWZHEk8ni1","proof":["11111111111111111111111111111111","Cf5tmmFZ4D31tviuJezHdFLf5WF7yFvzfxNyftKsqTwr","DJ1kkERH23xtXVC5w4JM8VuLaGBFMSzjnEhu8ds6BiWR","7kieKvZEkYzsP2KFniw1R94R5xLtxiQEfn1jJY9qrb6a","CX6YjLNphY2mUgDCt2MSWGUWmDB8aoJEoRiabxFgjQDb","zLUDhASAn7WA1Aqc724azRpZjKCjMQNATApe74JMg8C","ABnEXHmveD6iuMwfw2po7t6TPjn5kYMVwYJMi3fa9K91","JDh7eiWiUWtiWn623iybHqjQ6AQ6c2Czz8m6ZxwSCkta","BFvmeiEuzAYcMR8YxcuCMGYPDpjcmP5hsNbcswgQ8pMc","EvxphsdRErrDMs9nhFfF4nzq8i1C2KSogA7uB96TPpPR","HpMJWAzQv9HFgHBqY1o8V1B27sCYPFHJdGivDA658jEL","HjnrJn5vBUUzpCxzjjM9ZnCPuXei2cXKJjX468B9yWD7","4YCF1CSyTXm1Yi9W9JeYevawupkomdgy2dLxEBHL9euq","E3oMtCuPEauftdZLX8EZ8YX7BbFzpBCVRYEiLxwPJLY2"],"node_index":16412,"leaf":"BTVmcRPBuutDxfGhxcCXGHdgHCEhZrvdxj36CFG7arzt","tree_id":"GpseMQCGcVHt2QxhieSGiEsuS6G5sKpEHeAWYwUx5z5c"}}'
 
 const object2_response =
-  '{"assetId":"AEdTGc4kWLco9vkWQrAUKbtzzPva9QmWYJMxHeBvjJtq","leafSchema":{"__kind":"V1","id":"AEdTGc4kWLco9vkWQrAUKbtzzPva9QmWYJMxHeBvjJtq","owner":"BAC786427LZg4iK2TaLaHVStYhcwHxWingCUGqzMatei","delegate":"BAC786427LZg4iK2TaLaHVStYhcwHxWingCUGqzMatei","nonce":32,"dataHash":{"0":69,"1":204,"2":218,"3":52,"4":77,"5":10,"6":199,"7":233,"8":245,"9":87,"10":127,"11":45,"12":212,"13":64,"14":124,"15":209,"16":147,"17":64,"18":243,"19":252,"20":90,"21":115,"22":189,"23":33,"24":9,"25":156,"26":190,"27":136,"28":242,"29":182,"30":253,"31":37},"creatorHash":{"0":77,"1":213,"2":154,"3":225,"4":97,"5":203,"6":74,"7":63,"8":198,"9":140,"10":244,"11":87,"12":144,"13":15,"14":74,"15":46,"16":161,"17":9,"18":203,"19":202,"20":242,"21":175,"22":172,"23":151,"24":43,"25":195,"26":151,"27":143,"28":107,"29":138,"30":102,"31":27}},"index":32,"root":[95,115,57,29,46,187,206,174,111,140,123,137,116,223,51,146,251,0,162,65,128,1,165,7,4,218,168,48,18,247,192,201],"proof":{"root":"7RbdqkiSF4QmMr65we9QPgPA5i49CeiDhoMHBphaFm84","proof":["11111111111111111111111111111111","Cf5tmmFZ4D31tviuJezHdFLf5WF7yFvzfxNyftKsqTwr","DAbAU9srHpEUogXWuhy5VZ7g8UX9STymELtndcx1xgP1","3HCYqQRcQSChEuAw1ybNYHibrTNNjzbYzm56cmEmivB6","GSz87YKd3YoZWcEKhnjSsYJwv8o5aWGdBdGGYUphRfTh","4K6tKnbfNar36yQDrWvb2KSjm4y6C8aUAAcXq94BoxkG","ABnEXHmveD6iuMwfw2po7t6TPjn5kYMVwYJMi3fa9K91","JDh7eiWiUWtiWn623iybHqjQ6AQ6c2Czz8m6ZxwSCkta","BFvmeiEuzAYcMR8YxcuCMGYPDpjcmP5hsNbcswgQ8pMc","EvxphsdRErrDMs9nhFfF4nzq8i1C2KSogA7uB96TPpPR","HpMJWAzQv9HFgHBqY1o8V1B27sCYPFHJdGivDA658jEL","HjnrJn5vBUUzpCxzjjM9ZnCPuXei2cXKJjX468B9yWD7","4YCF1CSyTXm1Yi9W9JeYevawupkomdgy2dLxEBHL9euq","E3oMtCuPEauftdZLX8EZ8YX7BbFzpBCVRYEiLxwPJLY2"],"node_index":16416,"leaf":"BJ4wXh1HvjmJV8cCuQn5PuFxcL7TyJHnPCKRZwGHVV7A","tree_id":"GpseMQCGcVHt2QxhieSGiEsuS6G5sKpEHeAWYwUx5z5c"}}';
+  '{"assetId":"AEdTGc4kWLco9vkWQrAUKbtzzPva9QmWYJMxHeBvjJtq","leafSchema":{"__kind":"V1","id":"AEdTGc4kWLco9vkWQrAUKbtzzPva9QmWYJMxHeBvjJtq","owner":"BAC786427LZg4iK2TaLaHVStYhcwHxWingCUGqzMatei","delegate":"BAC786427LZg4iK2TaLaHVStYhcwHxWingCUGqzMatei","nonce":32,"dataHash":{"0":69,"1":204,"2":218,"3":52,"4":77,"5":10,"6":199,"7":233,"8":245,"9":87,"10":127,"11":45,"12":212,"13":64,"14":124,"15":209,"16":147,"17":64,"18":243,"19":252,"20":90,"21":115,"22":189,"23":33,"24":9,"25":156,"26":190,"27":136,"28":242,"29":182,"30":253,"31":37},"creatorHash":{"0":77,"1":213,"2":154,"3":225,"4":97,"5":203,"6":74,"7":63,"8":198,"9":140,"10":244,"11":87,"12":144,"13":15,"14":74,"15":46,"16":161,"17":9,"18":203,"19":202,"20":242,"21":175,"22":172,"23":151,"24":43,"25":195,"26":151,"27":143,"28":107,"29":138,"30":102,"31":27}},"index":32,"root":[95,115,57,29,46,187,206,174,111,140,123,137,116,223,51,146,251,0,162,65,128,1,165,7,4,218,168,48,18,247,192,201],"proof":{"root":"7RbdqkiSF4QmMr65we9QPgPA5i49CeiDhoMHBphaFm84","proof":["11111111111111111111111111111111","Cf5tmmFZ4D31tviuJezHdFLf5WF7yFvzfxNyftKsqTwr","DAbAU9srHpEUogXWuhy5VZ7g8UX9STymELtndcx1xgP1","3HCYqQRcQSChEuAw1ybNYHibrTNNjzbYzm56cmEmivB6","GSz87YKd3YoZWcEKhnjSsYJwv8o5aWGdBdGGYUphRfTh","4K6tKnbfNar36yQDrWvb2KSjm4y6C8aUAAcXq94BoxkG","ABnEXHmveD6iuMwfw2po7t6TPjn5kYMVwYJMi3fa9K91","JDh7eiWiUWtiWn623iybHqjQ6AQ6c2Czz8m6ZxwSCkta","BFvmeiEuzAYcMR8YxcuCMGYPDpjcmP5hsNbcswgQ8pMc","EvxphsdRErrDMs9nhFfF4nzq8i1C2KSogA7uB96TPpPR","HpMJWAzQv9HFgHBqY1o8V1B27sCYPFHJdGivDA658jEL","HjnrJn5vBUUzpCxzjjM9ZnCPuXei2cXKJjX468B9yWD7","4YCF1CSyTXm1Yi9W9JeYevawupkomdgy2dLxEBHL9euq","E3oMtCuPEauftdZLX8EZ8YX7BbFzpBCVRYEiLxwPJLY2"],"node_index":16416,"leaf":"BJ4wXh1HvjmJV8cCuQn5PuFxcL7TyJHnPCKRZwGHVV7A","tree_id":"GpseMQCGcVHt2QxhieSGiEsuS6G5sKpEHeAWYwUx5z5c"}}'
 
-const cnft_data = JSON.parse(object2_response);
+const cnft_data = JSON.parse(object2_response)
 
 const initializeAddress = async () => {
   const pk =
-    "rDQ9vxwjaqrXQZk6Y6CXTAsoVMd2C33VLejE8p1Gd3Xgobyk5RKrGWXZ9H6CsZsNCVxStBMVXV9nKByKTcEKCUD";
+    'rDQ9vxwjaqrXQZk6Y6CXTAsoVMd2C33VLejE8p1Gd3Xgobyk5RKrGWXZ9H6CsZsNCVxStBMVXV9nKByKTcEKCUD'
 
-  const user = Keypair.fromSecretKey(Uint8Array.from(bs58.decode(pk)));
+  const user = Keypair.fromSecretKey(Uint8Array.from(bs58.decode(pk)))
 
   const addressBondsRewards = PublicKey.findProgramAddressSync(
-    [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
+    [Buffer.from('address_bonds_rewards'), user.publicKey.toBuffer()],
     program.programId
-  )[0];
+  )[0]
 
   const transaction = await program.methods
     .initializeAddress()
@@ -299,14 +371,14 @@ const initializeAddress = async () => {
       rewardsConfig: rewardsConfigPda,
       authority: user.publicKey,
     })
-    .transaction();
+    .transaction()
 
   const transactionSignature = await connection.sendTransaction(transaction, [
     user,
-  ]);
+  ])
 
-  console.log(transactionSignature);
-};
+  console.log(transactionSignature)
+}
 
 // initializeAddress()
 
@@ -404,3 +476,4 @@ const initializeAddress = async () => {
 // };
 
 // bond();
+*/
