@@ -66,7 +66,7 @@ Once you build, a new Program address is generated (so long as you don't have a 
 
 ```bash
 $ anchor keys list
-core-sol-bond-stake-sc: 4wDs9FnvdksFXy69UKVgi7WWqtYJmbM6TiMCEWY9wJz9
+core-sol-bond-stake-sc: 9s6LjFX1UjUe4876GAzZ6nWt7Sh45fje96trHx3Wpdbz
 ```
 
 Replace the default value of `program_id` with this new value:

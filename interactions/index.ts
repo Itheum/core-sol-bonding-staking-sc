@@ -46,7 +46,7 @@ const mapProof = (proof: string[]): AccountMeta[] => {
 };
 
 const ITHEUM_TOKEN = process.env.ITHEUM_TOKEN;
-const programId = new PublicKey("2sr4qeqsgTGQBdYRWSfaScapUfpB2JGtgiKjVEnneuKS");
+const programId = new PublicKey("9s6LjFX1UjUe4876GAzZ6nWt7Sh45fje96trHx3Wpdbz");
 const connection = new Connection(
   clusterApiUrl(process.env.CLUSTER_URL as Cluster),
   "confirmed"
@@ -81,17 +81,17 @@ const initializeContract = async () => {
   const transaction = await program.methods
     .initializeContract(
       1, // Index of the Collection Config (we cab have different collections. e.g. NFMeID we can have a setup and another one we can have a diff setup etc)
-      new anchor.BN(43200), // Lock period (half a day) 43200 sec is 12 hours
-      new anchor.BN(1000e9), // Bonding amount (1000e9 = 1000 ITHEUM)
+      new anchor.BN(3600), // Lock period (half a day) 43200 sec is 12 hours
+      new anchor.BN(999e9), // Bonding amount (1000e9 = 1000 ITHEUM)
       new anchor.BN(1e4), // Rewards per slot (1e4 = 10000) - 10000 / 10^9 (10 to the power of 9 - 9 is token decimal)
       new anchor.BN(8000), // Max APR in % (8000 is 80%)
-      new anchor.BN(8000) // Withdraw penalty in % (8000 is 80%)
+      new anchor.BN(1000) // Withdraw penalty in % (8000 is 80%)
     )
     .signers([admin])
     .accounts({
       bondConfig: bondConfigPda1,
       rewardsConfig: rewardsConfigPda,
-      merkleTree: new PublicKey("3KcpbXsmTBP9eZRXSUsRkE4uxNaRho85qmSRnnZR2VvE"), // Replace with your actual merkle tree address
+      merkleTree: new PublicKey("7uAVV946ac3ZxVCPK36UTEyFwTABWbCdgzyrBobwcLCn"), // Replace with your actual merkle tree address
       authority: admin.publicKey, // The admin will act as the authority
     })
     .transaction();
@@ -252,7 +252,7 @@ const setRewardsStateActive = async () => {
   console.log(transactionSignature);
 };
 
-// setRewardsStateActive();
+setRewardsStateActive();
 
 const setRewardsStateInactive = async () => {
   const tx = await program.methods
@@ -286,7 +286,7 @@ const changeLockPeriod = async (index: number, lockPeriod: number) => {
   console.log(transactionSignature);
 };
 
-changeLockPeriod(1, 10800);
+// changeLockPeriod(1, 10800);
 // Lock period (half a day) 43200 sec is 12 hours
 
 const changeMerkleTree = async (index: number, merkleTree: string) => {
