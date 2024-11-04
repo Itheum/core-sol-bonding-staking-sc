@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(Accounts)]
-#[instruction(bond_config_index:u8,bond_id: u8, amount:u64)]
+#[instruction(bond_config_index:u8,bond_id: u16, amount:u64)]
 
 pub struct TopUp<'info> {
     #[account(

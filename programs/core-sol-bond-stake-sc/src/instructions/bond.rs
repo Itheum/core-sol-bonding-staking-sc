@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[derive(Accounts)]
-#[instruction(bond_config_index: u8, bond_id:u8, amount: u64,nonce: u64)]
+#[instruction(bond_config_index: u8, bond_id:u16, amount: u64,nonce: u64)]
 pub struct BondContext<'info> {
     #[account(
         mut,
@@ -41,7 +41,7 @@ pub struct BondContext<'info> {
         seeds = [
             BOND_SEED.as_bytes(),
             authority.key().as_ref(),
-            &bond_id.to_le_bytes()
+            bond_id.to_le_bytes().as_ref()
         ],
         bump,
         space = Bond::INIT_SPACE
@@ -110,7 +110,7 @@ pub struct BondContext<'info> {
 
 pub fn bond<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BondContext<'info>>,
-    bond_id: u8,
+    bond_id: u16,
     amount: u64,
     nonce: u64,
     is_vault: bool,

@@ -1328,7 +1328,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1401,7 +1405,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1464,7 +1472,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1534,7 +1546,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1604,7 +1620,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1684,7 +1704,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1717,7 +1741,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1757,7 +1785,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1792,7 +1824,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1828,7 +1864,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1864,7 +1904,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1906,7 +1950,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1961,7 +2009,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1997,7 +2049,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2032,7 +2088,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2096,7 +2156,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2174,7 +2238,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2259,7 +2327,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond3 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([3])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(3).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2356,7 +2428,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2516,7 +2592,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2567,7 +2647,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond3 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([3])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(3).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2685,7 +2769,8 @@ async function calculateWeightedLivelinessScore(
       [
         Buffer.from("bond"),
         userBondsAcc.address.toBuffer(),
-        Buffer.from([bond_id]),
+        new anchor.BN(bond_id).toBuffer("le", 2),
+        ,
       ],
       program.programId
     )[0];

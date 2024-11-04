@@ -145,7 +145,7 @@ pub mod core_sol_bond_stake_sc {
     pub fn bond<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'info, 'info, BondContext<'info>>,
         _bond_config_index: u8,
-        bond_id: u8,
+        bond_id: u16,
         amount: u64,
         nonce: u64,
         is_vault: bool,
@@ -169,7 +169,7 @@ pub mod core_sol_bond_stake_sc {
         )
     }
 
-    pub fn renew(ctx: Context<Renew>, _bond_config_index: u8, _bond_id: u8) -> Result<()> {
+    pub fn renew(ctx: Context<Renew>, _bond_config_index: u8, _bond_id: u16) -> Result<()> {
         require!(
             ctx.accounts.bond_config.bond_state == State::Active.to_code(),
             Errors::ProgramIsPaused
@@ -180,7 +180,7 @@ pub mod core_sol_bond_stake_sc {
     pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'info, 'info, Withdraw<'info>>,
         _bond_config_index: u8,
-        _bond_id: u8,
+        _bond_id: u16,
     ) -> Result<()> {
         require!(
             ctx.accounts.bond_config.bond_state == State::Active.to_code(),
@@ -192,7 +192,7 @@ pub mod core_sol_bond_stake_sc {
     pub fn top_up<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, TopUp<'info>>,
         _bond_config_index: u8,
-        _bond_id: u8,
+        _bond_id: u16,
         amount: u64,
     ) -> Result<()> {
         require!(
@@ -207,7 +207,7 @@ pub mod core_sol_bond_stake_sc {
     pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, StakeRewards<'info>>,
         _bond_config_index: u8,
-        _bond_id: u8,
+        _bond_id: u16,
     ) -> Result<()> {
         require!(
             ctx.accounts.bond_config.bond_state == State::Active.to_code(),

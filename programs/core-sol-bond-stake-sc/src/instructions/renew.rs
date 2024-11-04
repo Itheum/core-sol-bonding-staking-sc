@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[derive(Accounts)]
-#[instruction(bond_config_index:u8,bond_id:u8)]
+#[instruction(bond_config_index:u8,bond_id:u16)]
 pub struct Renew<'info> {
     #[account(
         seeds=[BOND_CONFIG_SEED.as_bytes(),&bond_config_index.to_be_bytes()],
