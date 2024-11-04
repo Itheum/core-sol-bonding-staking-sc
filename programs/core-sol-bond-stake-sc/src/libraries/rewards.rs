@@ -145,6 +145,6 @@ pub fn compute_weighted_liveliness_new(
             .saturating_add(weight_to_be_added))
         .saturating_div(address_total_bond_amount_after);
 
-        new
+        new.min(10_000)
     }
 }
