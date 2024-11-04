@@ -40,4 +40,8 @@ pub enum Errors {
     NotCreator,
     #[msg("Asset Id mismatch")]
     AssetIdMismatch,
+    #[msg("ParentBondIsNotVault")]
+    ParentBondIsNotVault,
+    #[msg("ParentBondIsNotActive")]
+    ParentBondIsNotActive,
 }
