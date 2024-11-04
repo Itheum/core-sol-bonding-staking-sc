@@ -1946,6 +1946,12 @@ describe("core-sol-bond-stake-sc", () => {
         addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
       `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
     );
+
+    assert(
+      addressBondsFetched.addressTotalBondAmount.toNumber() /
+        LAMPORTS_PER_SOL ==
+        100
+    );
   });
 
   it("Withdraw bond 1 by user - already withdrawn (should fail)", async () => {
@@ -2202,6 +2208,8 @@ describe("core-sol-bond-stake-sc", () => {
     const addressBondsFetched = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
+
+    assert(addressBondsFetched.addressTotalBondAmount.toNumber() == 100e9);
 
     assert(
       addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
@@ -2500,6 +2508,108 @@ describe("core-sol-bond-stake-sc", () => {
 
     assert(addressRewardsAccAfter.claimableAmount.toNumber() === 0);
   });
+
+  it("Withdraw bond 2 by user", async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
+      program.programId
+    )[0];
+
+    const bond2 = PublicKey.findProgramAddressSync(
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      program.programId
+    )[0];
+
+    let x = await program.methods
+      .withdraw(1, 2)
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        mintOfTokenToReceive: itheum_token_mint.publicKey,
+        bond: bond2,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        authority: user.publicKey,
+        authorityTokenAccount: itheum_token_user_ata,
+      })
+      .rpc();
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    );
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    );
+
+    assert(addressBondsFetched.addressTotalBondAmount.toNumber() === 100e9);
+
+    const tolerance = normalWeighted * 0.001;
+    const lowerBound = normalWeighted - tolerance;
+    const upperBound = normalWeighted + tolerance;
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
+        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
+      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    );
+  });
+
+  it("Withdraw bond 3 by user", async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
+      program.programId
+    )[0];
+
+    const bond3 = PublicKey.findProgramAddressSync(
+      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([3])],
+      program.programId
+    )[0];
+
+    let x = await program.methods
+      .withdraw(1, 3)
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        bondConfig: bondConfigPda1,
+        rewardsConfig: rewardsConfigPda,
+        mintOfTokenToReceive: itheum_token_mint.publicKey,
+        bond: bond3,
+        vaultConfig: vaultConfigPda,
+        vault: vault_ata,
+        authority: user.publicKey,
+        authorityTokenAccount: itheum_token_user_ata,
+      })
+      .rpc();
+
+    const normalWeighted = await calculateWeightedLivelinessScore(
+      x,
+      userBondsRewards,
+      bondConfigPda1,
+      program
+    );
+
+    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    );
+
+    assert(addressBondsFetched.addressTotalBondAmount.toNumber() === 0);
+
+    const tolerance = normalWeighted * 0.001;
+    const lowerBound = normalWeighted - tolerance;
+    const upperBound = normalWeighted + tolerance;
+
+    assert(
+      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
+        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
+      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    );
+  });
 });
 
 function delay(ms: number) {
@@ -2598,6 +2708,12 @@ async function calculateWeightedLivelinessScore(
     totalBondAmount = totalBondAmount.add(bondAcc.bondAmount);
   }
 
+  if (
+    totalBondAmount.eq(new anchor.BN(0)) ||
+    totalBondWeight.eq(new anchor.BN(0))
+  ) {
+    return 0;
+  }
   const weighted_score = totalBondWeight.div(totalBondAmount);
 
   return weighted_score.toNumber();
