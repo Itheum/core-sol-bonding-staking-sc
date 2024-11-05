@@ -66,7 +66,7 @@ Once you build, a new Program address is generated (so long as you don't have a 
 
 ```bash
 $ anchor keys list
-core-sol-bond-stake-sc: 9s6LjFX1UjUe4876GAzZ6nWt7Sh45fje96trHx3Wpdbz
+core-sol-bond-stake-sc: CmFnuyhgGYsPUREus2NaXos9YBwWCh1NbXnJxG9HDnLY
 ```
 
 Replace the default value of `program_id` with this new value:
@@ -110,7 +110,7 @@ Let's deploy the program using anchor...
 $ solana config set --url localhost
 ```
 
-or else, you can update Anchor.toml `cluster = "devnet"` or `mainnet` (mainnet-beta?)
+or else, you can update Anchor.toml `cluster = "devnet"` or `mainnet`
 
 you can also toggle deploying wallet by `wallet = "usb://ledger?key=1"` or `wallet = "~/.config/solana/id.json"`
 
@@ -204,8 +204,28 @@ Configure your deployed contract using the interactions node script.
 
 Go into the interactions Folder, and run the script as `bun index.ts` as you comment out sections you want to run. We use `bun` so you can run the TS files. You can also use `npx ts-node index.ts `. Note that sometimes some commands can fail with an error like "TokenAccountNotFound" -- this may just be due to congestion, so try again or add some "sleeps" between tasks.
 
-## Upgrade contract
+## Upgrade a Deployed Smart Contract
 
-- Update your code as needed and then run `anchor build`
-- Then make sure `Anchor.toml` has the right settings for your target environment and keys
-- Then `anchor deploy`
+- get latest code from a PR
+- make sure the right `target` folder is used (devnet or mainnet)
+- make sure the right `declare_id` the `lib.rs` and `ADMIN_PUBKEY` the `constants.rs` files
+
+```
+// Devnet - lib.rs
+declare_id!("9s6LjFX1UjUe4876GAzZ6nWt7Sh45fje96trHx3Wpdbz");
+
+// Mainnet - lib.rs
+declare_id!("CmFnuyhgGYsPUREus2NaXos9YBwWCh1NbXnJxG9HDnLY");
+
+// Devnet - constants.rs
+pub const ADMIN_PUBKEY: Pubkey = pubkey!("5RFetgyZyFCAVCZpYWvdJt7JqgtFmm82vz24nGANSbw7");
+
+// Mainnet - constants.rs
+pub const ADMIN_PUBKEY: Pubkey = pubkey!("1KsJeTvmJaWsAdZba7V7sxQ7zPFKQp1seh2XP9ZHnsd");
+
+```
+
+- run `anchor build`
+- make sure the `Anchor.toml` file has the right settings for `cluster` (`mainnet` or `devnet`) and `wallet` and also change `core_sol_bond_stake_sc` (not mandatory but why not)
+- run `anchor deploy`
+- [any custom interactions can then be called on it]

@@ -45,8 +45,8 @@ const mapProof = (proof: string[]): AccountMeta[] => {
   }));
 };
 
-const ITHEUM_TOKEN = process.env.ITHEUM_TOKEN;
-const programId = new PublicKey("9s6LjFX1UjUe4876GAzZ6nWt7Sh45fje96trHx3Wpdbz");
+const ITHEUM_TOKEN = process.env.ITHEUM_TOKEN; // load on ENV based on devnet or mainnet
+const programId = new PublicKey("9s6LjFX1UjUe4876GAzZ6nWt7Sh45fje96trHx3Wpdbz"); // devnet
 const connection = new Connection(
   clusterApiUrl(process.env.CLUSTER_URL as Cluster),
   "confirmed"
@@ -72,9 +72,18 @@ const vaultConfig = PublicKey.findProgramAddressSync(
 )[0];
 
 // Extract the private key from the environment variable
-const PRIVATE_KEY_STR = process.env.PROGRAM_ADMIN_WALLET;
+const PRIVATE_KEY_STR = process.env.PROGRAM_ADMIN_WALLET; // load on ENV based on devnet or mainnet
 const privateKeys = PRIVATE_KEY_STR.split(",").map(Number);
 const admin = Keypair.fromSecretKey(Uint8Array.from(privateKeys));
+
+/*
+  e.g. devnet
+  1M Rewards
+  Rewards per block (1e4) = .000010000
+    400 ms a slot * on day days avg oer month = we have around 78,840,000 slots per year
+    = 78,840,000 * .00001
+    = 788.4 rewards for everyone to share
+*/
 
 // Create the transaction using Anchor's methods API
 const initializeContract = async () => {
@@ -218,7 +227,7 @@ const updateRewardsPerSlot = async (rewards: number) => {
   console.log(transactionSignature);
 };
 
-// updateRewardsPerSlot(1000000)
+// updateRewardsPerSlot(1e6); // .001000000 (78,840,000 * 001 = 78840 reward per year for everyone to share)
 
 const updateMaxPercentage = async (percentage: number) => {
   const tx = await program.methods
@@ -252,7 +261,7 @@ const setRewardsStateActive = async () => {
   console.log(transactionSignature);
 };
 
-setRewardsStateActive();
+// setRewardsStateActive();
 
 const setRewardsStateInactive = async () => {
   const tx = await program.methods

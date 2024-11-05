@@ -11,4 +11,4 @@ pub const MAX_PERCENT: u64 = 10_000;
 pub const SLOTS_IN_YEAR: u64 = 78_840_000u64;
 pub const DIVISION_SAFETY_CONST: u64 = 1_000_000_000;
 
-pub const ADMIN_PUBKEY: Pubkey = pubkey!("5RFetgyZyFCAVCZpYWvdJt7JqgtFmm82vz24nGANSbw7");
+pub const ADMIN_PUBKEY: Pubkey = pubkey!("1KsJeTvmJaWsAdZba7V7sxQ7zPFKQp1seh2XP9ZHnsd");
