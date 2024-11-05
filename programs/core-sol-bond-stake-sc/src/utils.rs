@@ -5,12 +5,14 @@ use solana_program::clock;
 pub enum State {
     Inactive = 0,
     Active = 1,
+    Child = 2,
 }
 impl State {
     pub fn to_code(&self) -> u8 {
         match self {
             State::Inactive => 0,
             State::Active => 1,
+            State::Child => 2,
         }
     }
 }

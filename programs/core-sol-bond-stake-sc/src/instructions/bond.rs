@@ -216,7 +216,10 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
         bond_amount: amount,
         asset_id: asset_id.key(),
         owner: ctx.accounts.authority.key(),
-        padding: [0; 64],
+        parent_bond: Pubkey::default(),
+        start_nonce: 0u64,
+        end_nonce: 0u64,
+        padding: [0; 16],
     });
 
     Ok(())

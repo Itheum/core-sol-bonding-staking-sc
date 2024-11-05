@@ -169,6 +169,28 @@ pub mod core_sol_bond_stake_sc {
         )
     }
 
+    pub fn bond_range<'info>(
+        ctx: Context<BondRange>,
+        bond_config_index: u8,
+        bond_id: u8,
+        parent_bond_id: u8,
+        start_nonce: u64,
+        end_nonce: u64,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.bond_config.bond_state == State::Active.to_code(),
+            Errors::ProgramIsPaused
+        );
+        instructions::bond_range(
+            ctx,
+            bond_config_index,
+            bond_id,
+            parent_bond_id,
+            start_nonce,
+            end_nonce,
+        )
+    }
+
     pub fn renew(ctx: Context<Renew>, _bond_config_index: u8, _bond_id: u8) -> Result<()> {
         require!(
             ctx.accounts.bond_config.bond_state == State::Active.to_code(),
