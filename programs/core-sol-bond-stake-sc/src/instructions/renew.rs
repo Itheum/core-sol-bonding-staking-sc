@@ -87,11 +87,15 @@ pub fn renew(ctx: Context<Renew>) -> Result<()> {
     };
     msg!("weight_to_be_subtracted: {}", weight_to_be_subtracted);
     msg!("weight_to_be_subtracted amount: {}", bond.bond_amount);
-    msg!(
-        "weight_to_be_subtracted percent: {}",
-        bond.unbond_timestamp
-            - current_timestamp / ctx.accounts.bond_config.lock_period * MAX_PERCENT
-    );
+    if current_timestamp < bond.unbond_timestamp {
+        msg!(
+            "weight_to_be_subtracted percent: {}",
+            (bond.unbond_timestamp - current_timestamp) * MAX_PERCENT
+                / ctx.accounts.bond_config.lock_period
+        );
+    } else {
+        msg!("weight_to_be_subtracted percent: 0");
+    }
 
     let decay = compute_decay(
         ctx.accounts.address_bonds_rewards.last_update_timestamp,

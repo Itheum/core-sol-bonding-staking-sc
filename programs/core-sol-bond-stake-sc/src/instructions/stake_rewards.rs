@@ -108,11 +108,16 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
     };
     msg!("weight_to_be_subtracted: {}", weight_to_be_subtracted);
     msg!("weight_to_be_subtracted amount: {}", bond.bond_amount);
-    msg!(
-        "weight_to_be_subtracted percent: {}",
-        bond.unbond_timestamp
-            - current_timestamp / ctx.accounts.bond_config.lock_period * MAX_PERCENT
-    );
+    msg!("weight_to_be_subtracted amount: {}", bond.bond_amount);
+    if current_timestamp < bond.unbond_timestamp {
+        msg!(
+            "weight_to_be_subtracted percent: {}",
+            (bond.unbond_timestamp - current_timestamp) * MAX_PERCENT
+                / ctx.accounts.bond_config.lock_period
+        );
+    } else {
+        msg!("weight_to_be_subtracted percent: 0");
+    }
 
     let actual_claimable_amount;
 
