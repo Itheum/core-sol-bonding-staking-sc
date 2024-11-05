@@ -118,6 +118,13 @@ pub fn withdraw<'a, 'b, 'c: 'info, 'info>(
     } else {
         0
     };
+    msg!("weight_to_be_subtracted: {}", weight_to_be_subtracted);
+    msg!("weight_to_be_subtracted amount: {}", bond.bond_amount);
+    msg!(
+        "weight_to_be_subtracted percent: {}",
+        bond.unbond_timestamp
+            - current_timestamp / ctx.accounts.bond_config.lock_period * MAX_PERCENT
+    );
 
     let decay = compute_decay(
         ctx.accounts.address_bonds_rewards.last_update_timestamp,

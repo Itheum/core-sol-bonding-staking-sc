@@ -126,6 +126,9 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     let current_timestamp = get_current_timestamp()?;
 
     let weight_to_be_added = amount * MAX_PERCENT;
+    msg!("weight_to_be_added: {}", weight_to_be_added);
+    msg!("weight_to_be_added amount: {}", amount);
+    msg!("weight_to_be_added percent: {}", MAX_PERCENT);
 
     let decay = compute_decay(
         ctx.accounts.address_bonds_rewards.last_update_timestamp,
