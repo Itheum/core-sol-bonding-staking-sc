@@ -24,7 +24,7 @@ solana_security_txt::security_txt! {
     auditors: "https://itheum.io/audits"
 }
 
-declare_id!("CmFnuyhgGYsPUREus2NaXos9YBwWCh1NbXnJxG9HDnLY");
+declare_id!("9s6LjFX1UjUe4876GAzZ6nWt7Sh45fje96trHx3Wpdbz");
 
 #[program]
 pub mod core_sol_bond_stake_sc {
