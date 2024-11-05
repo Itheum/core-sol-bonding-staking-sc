@@ -113,18 +113,36 @@ pub fn update_address_claimable_rewards<'info>(
 }
 
 pub fn compute_decay(last_update_timestamp: u64, current_timestamp: u64, lock_period: u64) -> u64 {
-    (current_timestamp - last_update_timestamp)
+    msg!("current_timestamp: {}", current_timestamp);
+    msg!("last_update_timestamp: {}", last_update_timestamp);
+    msg!("lock_period: {}", lock_period);
+
+    let decay = (current_timestamp - last_update_timestamp)
         .mul_div_floor(DIVISION_SAFETY_CONST, lock_period)
-        .unwrap()
+        .unwrap();
+
+    msg!("decay: {}", decay);
+
+    decay
 }
 
 pub fn compute_weighted_liveliness_decay(weighted_liveliness_score: u64, decay: u64) -> u64 {
+    msg!(
+        "last weighted_liveliness_score: {}",
+        weighted_liveliness_score
+    );
+
     let weighted_liveliness_score_decayed = weighted_liveliness_score
         .mul_div_floor(
             1 * DIVISION_SAFETY_CONST.saturating_sub(decay),
             DIVISION_SAFETY_CONST,
         )
         .unwrap();
+
+    msg!(
+        "weighted_liveliness_score_decayed: {}",
+        weighted_liveliness_score_decayed
+    );
 
     weighted_liveliness_score_decayed
 }
@@ -136,6 +154,15 @@ pub fn compute_weighted_liveliness_new(
     weight_to_be_added: u64,
     weight_to_be_subtracted: u64,
 ) -> u64 {
+    msg!(
+        "address total bond amount before: {}",
+        address_total_bond_amount_before
+    );
+    msg!(
+        "address total bond amount after: {}",
+        address_total_bond_amount_after
+    );
+
     if address_total_bond_amount_after == 0 {
         0u64
     } else {
@@ -144,6 +171,8 @@ pub fn compute_weighted_liveliness_new(
             .saturating_sub(weight_to_be_subtracted)
             .saturating_add(weight_to_be_added))
         .saturating_div(address_total_bond_amount_after);
+
+        msg!("new weighted_liveliness_score: {}", new);
 
         new
     }

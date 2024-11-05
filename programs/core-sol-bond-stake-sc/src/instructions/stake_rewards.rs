@@ -106,6 +106,13 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
     } else {
         0
     };
+    msg!("weight_to_be_subtracted: {}", weight_to_be_subtracted);
+    msg!("weight_to_be_subtracted amount: {}", bond.bond_amount);
+    msg!(
+        "weight_to_be_subtracted percent: {}",
+        bond.unbond_timestamp
+            - current_timestamp / ctx.accounts.bond_config.lock_period * MAX_PERCENT
+    );
 
     let actual_claimable_amount;
 
@@ -127,6 +134,9 @@ pub fn stake_rewards<'a, 'b, 'c: 'info, 'info>(
     address_bonds_rewards.claimable_amount = 0;
 
     let weight_to_be_added = bond.bond_amount * MAX_PERCENT;
+    msg!("weight_to_be_added: {}", weight_to_be_added);
+    msg!("weight_to_be_added amount: {}", bond.bond_amount);
+    msg!("weight_to_be_added percent: {}", MAX_PERCENT);
 
     let weighted_liveliness_score_new = compute_weighted_liveliness_new(
         weighted_liveliness_score_decayed,
