@@ -9,14 +9,13 @@ use mpl_bubblegum::{types::LeafSchema, utils::get_asset_id};
 use spl_account_compression::program::SplAccountCompression;
 
 use crate::{
-    compute_decay, compute_weighted_liveliness_decay, compute_weighted_liveliness_new,
     get_current_timestamp, update_address_claimable_rewards, AddressBondsRewards, AssetUsage, Bond,
     BondConfig, Errors, RewardsConfig, State, VaultConfig, ADDRESS_BONDS_REWARDS_SEED,
-    BOND_CONFIG_SEED, BOND_SEED, MAX_PERCENT, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
+    BOND_CONFIG_SEED, BOND_SEED, REWARDS_CONFIG_SEED, VAULT_CONFIG_SEED,
 };
 
 #[derive(Accounts)]
-#[instruction(bond_config_index: u8, bond_id:u8, amount: u64,nonce: u64)]
+#[instruction(bond_config_index: u8, bond_id:u16, amount: u64,nonce: u64)]
 pub struct BondContext<'info> {
     #[account(
         mut,
@@ -110,10 +109,9 @@ pub struct BondContext<'info> {
 
 pub fn bond<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BondContext<'info>>,
-    bond_id: u8,
+    bond_id: u16,
     amount: u64,
     nonce: u64,
-    is_vault: bool,
     root: [u8; 32],
     data_hash: [u8; 32],
     creator_hash: [u8; 32],
@@ -125,22 +123,6 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
 
     let current_timestamp = get_current_timestamp()?;
 
-    let weight_to_be_added = amount * MAX_PERCENT;
-    msg!("weight_to_be_added: {}", weight_to_be_added);
-    msg!("weight_to_be_added amount: {}", amount);
-    msg!("weight_to_be_added percent: {}", MAX_PERCENT);
-
-    let decay = compute_decay(
-        ctx.accounts.address_bonds_rewards.last_update_timestamp,
-        current_timestamp,
-        ctx.accounts.bond_config.lock_period,
-    );
-
-    let weighted_liveliness_score_decayed = compute_weighted_liveliness_decay(
-        ctx.accounts.address_bonds_rewards.weighted_liveliness_score,
-        decay,
-    );
-
     update_address_claimable_rewards(
         &mut ctx.accounts.rewards_config,
         &mut ctx.accounts.vault_config,
@@ -149,15 +131,6 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
 
     let address_bonds_rewards = &mut ctx.accounts.address_bonds_rewards;
 
-    let weighted_liveliness_score_new = compute_weighted_liveliness_new(
-        weighted_liveliness_score_decayed,
-        address_bonds_rewards.address_total_bond_amount,
-        address_bonds_rewards.address_total_bond_amount + amount,
-        weight_to_be_added,
-        0,
-    );
-
-    address_bonds_rewards.weighted_liveliness_score = weighted_liveliness_score_new;
     address_bonds_rewards.last_update_timestamp = current_timestamp;
     address_bonds_rewards.address_total_bond_amount += amount;
 
@@ -213,7 +186,6 @@ pub fn bond<'a, 'b, 'c: 'info, 'info>(
     ctx.accounts.bond.set_inner(Bond {
         bump: ctx.bumps.bond,
         state: State::Active.to_code(),
-        is_vault,
         unbond_timestamp: current_timestamp.add(ctx.accounts.bond_config.lock_period),
         bond_timestamp: current_timestamp,
         bond_amount: amount,
