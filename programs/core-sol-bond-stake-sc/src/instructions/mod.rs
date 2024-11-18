@@ -15,3 +15,5 @@ pub mod claim_rewards;
 pub use claim_rewards::*;
 pub mod initialize_address;
 pub use initialize_address::*;
+pub mod vault_address_update;
+pub use vault_address_update::*;

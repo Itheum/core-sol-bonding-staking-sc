@@ -1257,7 +1257,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1273,7 +1277,6 @@ describe("core-sol-bond-stake-sc", () => {
           1,
           new anchor.BN(100e9),
           new anchor.BN(Number(user_nft_leaf_schemas[0].nonce)),
-          false,
           Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
           Array.from(user_nft_leaf_schemas[0].dataHash),
           Array.from(user_nft_leaf_schemas[0].creatorHash)
@@ -1328,7 +1331,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1354,7 +1361,6 @@ describe("core-sol-bond-stake-sc", () => {
           1,
           new anchor.BN(10e9),
           new anchor.BN(Number(user_nft_leaf_schemas[0].nonce)),
-          false,
           Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
           Array.from(user_nft_leaf_schemas[0].dataHash),
           Array.from(user_nft_leaf_schemas[0].creatorHash)
@@ -1401,7 +1407,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1417,7 +1427,6 @@ describe("core-sol-bond-stake-sc", () => {
           2,
           new anchor.BN(100e9),
           new anchor.BN(Number(user_nft_leaf_schemas[0].nonce)),
-          false,
           Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
           Array.from(user_nft_leaf_schemas[0].dataHash),
           Array.from(user_nft_leaf_schemas[0].creatorHash)
@@ -1464,7 +1473,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1479,7 +1492,6 @@ describe("core-sol-bond-stake-sc", () => {
         1,
         new anchor.BN(100e9),
         new anchor.BN(Number(user_nft_leaf_schemas[0].nonce)),
-        true,
         Array.from(bs58.decode(user_nft_leaf_schemas[0].id)),
         Array.from(user_nft_leaf_schemas[0].dataHash),
         Array.from(user_nft_leaf_schemas[0].creatorHash)
@@ -1511,19 +1523,36 @@ describe("core-sol-bond-stake-sc", () => {
       ])
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
-
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    let addressBondsRewards = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    expect(addressBondsRewards.currentIndex).to.equal(1);
+    expect(addressBondsRewards.claimableAmount.toNumber()).to.equal(0);
+    expect(addressBondsRewards.vaultBondId).to.equal(0);
+    expect(
+      addressBondsRewards.addressTotalBondAmount.toNumber() / LAMPORTS_PER_SOL
+    ).to.eq(100);
+
+    let bondAcc = await program.account.bond.fetch(bond1);
+    let bondConfigAcc = await program.account.bondConfig.fetch(bondConfigPda1);
+
+    await new Promise((r) => setTimeout(r, 2000));
+
+    const transactionDetails = await program.provider.connection.getTransaction(
+      x,
+      { commitment: "confirmed" }
+    );
+    const blockTime = await program.provider.connection.getBlockTime(
+      transactionDetails.slot
+    );
+
+    expect(bondAcc.bondAmount.toNumber()).to.equal(100e9);
+    expect(bondAcc.state).to.equal(1);
+    expect(bondAcc.owner.toBase58()).to.equal(user.publicKey.toBase58());
+    expect(bondAcc.bondTimestamp.toNumber()).to.equal(blockTime);
+    expect(bondAcc.unbondTimestamp.toNumber()).to.equal(
+      blockTime + bondConfigAcc.lockPeriod.toNumber()
     );
   });
 
@@ -1534,7 +1563,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1549,7 +1582,6 @@ describe("core-sol-bond-stake-sc", () => {
         2,
         new anchor.BN(100e9),
         new anchor.BN(Number(user_nft_leaf_schemas[1].nonce)),
-        false,
         Array.from(bs58.decode(user_nft_leaf_schemas[1].id)),
         Array.from(user_nft_leaf_schemas[1].dataHash),
         Array.from(user_nft_leaf_schemas[1].creatorHash)
@@ -1581,19 +1613,36 @@ describe("core-sol-bond-stake-sc", () => {
       ])
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
-
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    let addressBondsRewards = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    expect(addressBondsRewards.currentIndex).to.equal(2);
+    expect(addressBondsRewards.claimableAmount.toNumber()).to.equal(0);
+    expect(addressBondsRewards.vaultBondId).to.equal(0);
+    expect(
+      addressBondsRewards.addressTotalBondAmount.toNumber() / LAMPORTS_PER_SOL
+    ).to.eq(200);
+
+    let bondAcc = await program.account.bond.fetch(bond2);
+    let bondConfigAcc = await program.account.bondConfig.fetch(bondConfigPda1);
+
+    await new Promise((r) => setTimeout(r, 2000));
+
+    const transactionDetails = await program.provider.connection.getTransaction(
+      x,
+      { commitment: "confirmed" }
+    );
+    const blockTime = await program.provider.connection.getBlockTime(
+      transactionDetails.slot
+    );
+
+    expect(bondAcc.bondAmount.toNumber()).to.equal(100e9);
+    expect(bondAcc.state).to.equal(1);
+    expect(bondAcc.owner.toBase58()).to.equal(user.publicKey.toBase58());
+    expect(bondAcc.bondTimestamp.toNumber()).to.equal(blockTime);
+    expect(bondAcc.unbondTimestamp.toNumber()).to.equal(
+      blockTime + bondConfigAcc.lockPeriod.toNumber()
     );
   });
 
@@ -1604,7 +1653,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1629,7 +1682,6 @@ describe("core-sol-bond-stake-sc", () => {
         1,
         new anchor.BN(100e9),
         new anchor.BN(Number(user2_nft_leaf_schemas[0].nonce)),
-        true,
         Array.from(bs58.decode(user2_nft_leaf_schemas[0].id)),
         Array.from(user2_nft_leaf_schemas[0].dataHash),
         Array.from(user2_nft_leaf_schemas[0].creatorHash)
@@ -1661,19 +1713,37 @@ describe("core-sol-bond-stake-sc", () => {
       ])
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
-
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    let addressBondsRewards = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    expect(addressBondsRewards.currentIndex).to.equal(1);
+    expect(addressBondsRewards.claimableAmount.toNumber()).to.equal(0);
+    expect(addressBondsRewards.vaultBondId).to.equal(0);
+    expect(
+      addressBondsRewards.addressTotalBondAmount.toNumber() / LAMPORTS_PER_SOL
+    ).to.eq(100);
+
+    let bondAcc = await program.account.bond.fetch(bond1);
+    let bondConfigAcc = await program.account.bondConfig.fetch(bondConfigPda1);
+
+    await new Promise((r) => setTimeout(r, 2000));
+
+    const transactionDetails = await program.provider.connection.getTransaction(
+      x,
+      { commitment: "confirmed" }
+    );
+    const blockTime = await program.provider.connection.getBlockTime(
+      transactionDetails.slot
+    );
+
+    expect(bondAcc.assetId.toBase58()).to.equal(user2_nft_leaf_schemas[0].id);
+    expect(bondAcc.bondAmount.toNumber()).to.equal(100e9);
+    expect(bondAcc.state).to.equal(1);
+    expect(bondAcc.owner.toBase58()).to.equal(user2.publicKey.toBase58());
+    expect(bondAcc.bondTimestamp.toNumber()).to.equal(blockTime);
+    expect(bondAcc.unbondTimestamp.toNumber()).to.equal(
+      blockTime + bondConfigAcc.lockPeriod.toNumber()
     );
   });
 
@@ -1684,7 +1754,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1717,7 +1791,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1734,20 +1812,25 @@ describe("core-sol-bond-stake-sc", () => {
       })
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
+    let bondAcc = await program.account.bond.fetch(bond1);
+    let bondConfigAcc = await program.account.bondConfig.fetch(bondConfigPda1);
+
+    await new Promise((r) => setTimeout(r, 2000));
+
+    const transactionDetails = await program.provider.connection.getTransaction(
       x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
+      { commitment: "confirmed" }
+    );
+    const blockTime = await program.provider.connection.getBlockTime(
+      transactionDetails.slot
     );
 
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
-      userBondsRewards
+    expect(bondAcc.state).to.equal(1);
+    expect(bondAcc.bondTimestamp.toNumber()).to.equal(blockTime);
+    expect(bondAcc.unbondTimestamp.toNumber()).to.equal(
+      blockTime + bondConfigAcc.lockPeriod.toNumber()
     );
-
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    );
+    expect(bondAcc.bondAmount.toNumber() / LAMPORTS_PER_SOL).to.equal(100);
   });
 
   it("TopUp bond 2 by user - bond not vault (should fail)", async () => {
@@ -1757,7 +1840,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1779,9 +1866,9 @@ describe("core-sol-bond-stake-sc", () => {
         .rpc();
       assert(false, "Should have thrown error");
     } catch (err) {
-      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6015);
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6019);
       expect((err as anchor.AnchorError).error.errorMessage).to.equal(
-        "Bond is not a vault"
+        "Vault bond id mismatch"
       );
     }
   });
@@ -1792,7 +1879,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1828,7 +1919,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1857,14 +1952,95 @@ describe("core-sol-bond-stake-sc", () => {
     }
   });
 
-  it("TopUp bond 1 by user", async () => {
+  it("TopUp bond 1 by user - vault not set (should fail)", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
       [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
       program.programId
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
+      program.programId
+    )[0];
+
+    try {
+      let x = await program.methods
+        .topUp(1, 1, new anchor.BN(100e9))
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          mintOfTokenSent: itheum_token_mint.publicKey,
+          bond: bond1,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          authority: user.publicKey,
+          authorityTokenAccount: itheum_token_user_ata,
+        })
+        .rpc();
+      assert(false, "Should have thrown error");
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6019);
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        "Vault bond id mismatch"
+      );
+    }
+  });
+
+  it("Set bond id 1 as vault by user", async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
+      program.programId
+    )[0];
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
+      program.programId
+    )[0];
+
+    await program.methods
+      .updateVaultBond(
+        1,
+        1,
+        new anchor.BN(Number(user_nft_leaf_schemas[0].nonce))
+      )
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        bond: bond1,
+        bondConfig: bondConfigPda1,
+        authority: user.publicKey,
+      })
+      .rpc();
+
+    const userAcc = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    );
+
+    expect(userAcc.vaultBondId).to.equal(1);
+  });
+
+  it("Topup vault by user", async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
+      program.programId
+    )[0];
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1884,21 +2060,96 @@ describe("core-sol-bond-stake-sc", () => {
       })
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
+    let bondAcc = await program.account.bond.fetch(bond1);
 
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    expect(bondAcc.bondAmount.toNumber() / LAMPORTS_PER_SOL).to.equal(200);
+
+    let userAcc = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
-    );
+    expect(
+      userAcc.addressTotalBondAmount.toNumber() / LAMPORTS_PER_SOL
+    ).to.equal(300);
   });
+
+  it("Change vault to bond 2 by user", async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
+      program.programId
+    )[0];
+
+    const bond2 = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
+      program.programId
+    )[0];
+
+    await program.methods
+      .updateVaultBond(
+        1,
+        2,
+        new anchor.BN(Number(user_nft_leaf_schemas[1].nonce))
+      )
+      .signers([user])
+      .accounts({
+        addressBondsRewards: userBondsRewards,
+        bond: bond2,
+        bondConfig: bondConfigPda1,
+        authority: user.publicKey,
+      })
+      .rpc();
+
+    const userAcc = await program.account.addressBondsRewards.fetch(
+      userBondsRewards
+    );
+
+    expect(userAcc.vaultBondId).to.equal(2);
+  });
+
+  it("TopUp bond 1 by user - vault set to other bond (should fail)", async () => {
+    const userBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
+      program.programId
+    )[0];
+
+    const bond1 = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
+      program.programId
+    )[0];
+
+    try {
+      let x = await program.methods
+        .topUp(1, 1, new anchor.BN(100e9))
+        .signers([user])
+        .accounts({
+          addressBondsRewards: userBondsRewards,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          mintOfTokenSent: itheum_token_mint.publicKey,
+          bond: bond1,
+          vaultConfig: vaultConfigPda,
+          vault: vault_ata,
+          authority: user.publicKey,
+          authorityTokenAccount: itheum_token_user_ata,
+        })
+        .rpc();
+      assert(false, "Should have thrown error");
+    } catch (err) {
+      expect((err as anchor.AnchorError).error.errorCode.number).to.equal(6019);
+      expect((err as anchor.AnchorError).error.errorMessage).to.equal(
+        "Vault bond id mismatch"
+      );
+    }
+  });
+
   it("Withdraw bond 1 by user", async () => {
     const userBondsRewards = PublicKey.findProgramAddressSync(
       [Buffer.from("address_bonds_rewards"), user.publicKey.toBuffer()],
@@ -1906,9 +2157,19 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
+
+    let balanceBefore = (
+      await program.provider.connection.getTokenAccountBalance(
+        itheum_token_user_ata
+      )
+    ).value.amount;
 
     let x = await program.methods
       .withdraw(1, 1)
@@ -1926,31 +2187,31 @@ describe("core-sol-bond-stake-sc", () => {
       })
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
-
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    let userAcc = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
-    const tolerance = normalWeighted * 0.001;
-    const lowerBound = normalWeighted - tolerance;
-    const upperBound = normalWeighted + tolerance;
+    let vaultAcc = await program.account.vaultConfig.fetch(vaultConfigPda);
 
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
-        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
-      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    let balanceAfter = (
+      await program.provider.connection.getTokenAccountBalance(
+        itheum_token_user_ata
+      )
+    ).value.amount;
+
+    expect(
+      vaultAcc.totalPenalizedAmount.toNumber() / LAMPORTS_PER_SOL
+    ).to.equal(100); // bond 1 - 200 tokens ; penalty 50% => 100 tokens
+    expect(vaultAcc.totalBondAmount.toNumber() / LAMPORTS_PER_SOL).to.equal(
+      200
     );
 
-    assert(
-      addressBondsFetched.addressTotalBondAmount.toNumber() /
-        LAMPORTS_PER_SOL ==
-        100
+    expect(
+      userAcc.addressTotalBondAmount.toNumber() / LAMPORTS_PER_SOL
+    ).to.equal(100); // remaining
+
+    expect(Number(balanceAfter) / LAMPORTS_PER_SOL).to.equal(
+      Number(balanceBefore) / LAMPORTS_PER_SOL + 100
     );
   });
 
@@ -1961,7 +2222,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -1997,7 +2262,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2032,7 +2301,11 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
@@ -2096,14 +2369,15 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
-    let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(userBondsRewards);
-
-    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+    let userAccBefore = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
@@ -2118,53 +2392,18 @@ describe("core-sol-bond-stake-sc", () => {
         bond: bond2,
         authority: user.publicKey,
       })
-      .rpc({ skipPreflight: true });
+      .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
-
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    let userAccAfter = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    expect(userAccAfter.claimableAmount.toNumber()).to.equal(
+      userAccBefore.claimableAmount.toNumber() + 5e5
     );
-
-    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
-      rewardsConfigPda
+    expect(userAccAfter.addressRewardsPerShare.toNumber()).to.equal(
+      userAccBefore.addressRewardsPerShare.toNumber() + 5e3
     );
-
-    let total_rewards = await calculateTotalRewardsInInterval(
-      activation_slot,
-      rewardsConfigPda,
-      program
-    );
-
-    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
-      userBondsRewards
-    );
-
-    let user_rewards = await calculateUserRewards(
-      normalWeighted,
-      addressRewardsAccBefore.addressRewardsPerShare,
-      userBondsBefore.addressTotalBondAmount,
-      rewardsConfigPda,
-      true,
-      program
-    );
-
-    assert(
-      addressRewardsAccBefore.claimableAmount.toNumber() +
-        user_rewards / 10 ** 9 ===
-        userRewardsAcc.claimableAmount.toNumber()
-    );
-
-    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards);
   });
 
   it("Check user2 rewards - (renew bond 1 by user2)", async () => {
@@ -2174,14 +2413,15 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond1 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
-    let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(userBondsRewards);
-
-    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+    let userAccBefore = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
@@ -2196,55 +2436,19 @@ describe("core-sol-bond-stake-sc", () => {
         bond: bond1,
         authority: user2.publicKey,
       })
-      .rpc({ skipPreflight: true });
+      .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
-
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    let userAccAfter = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
-    assert(addressBondsFetched.addressTotalBondAmount.toNumber() == 100e9);
-
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() == normalWeighted
+    expect(userAccAfter.claimableAmount.toNumber()).to.equal(
+      userAccBefore.claimableAmount.toNumber() + 10e5
     );
 
-    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
-      rewardsConfigPda
+    expect(userAccAfter.addressRewardsPerShare.toNumber()).to.equal(
+      userAccBefore.addressRewardsPerShare.toNumber() + 10e3
     );
-
-    let total_rewards = await calculateTotalRewardsInInterval(
-      activation_slot,
-      rewardsConfigPda,
-      program
-    );
-
-    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
-      userBondsRewards
-    );
-
-    let user_rewards = await calculateUserRewards(
-      normalWeighted,
-      addressRewardsAccBefore.addressRewardsPerShare,
-      userBondsBefore.addressTotalBondAmount,
-      rewardsConfigPda,
-      true,
-      program
-    );
-
-    assert(
-      addressRewardsAccBefore.claimableAmount.toNumber() +
-        user_rewards / 10 ** 9 ===
-        userRewardsAcc.claimableAmount.toNumber()
-    );
-
-    assert(rewardsConfigAcc.accumulatedRewards.toNumber() == total_rewards);
   });
 
   it("Check user rewards - bond 3 by user", async () => {
@@ -2259,14 +2463,15 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond3 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([3])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(3).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
-    let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(userBondsRewards);
-
-    let userBondsBefore = await program.account.addressBondsRewards.fetch(
+    let userAccBefore = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
@@ -2276,7 +2481,6 @@ describe("core-sol-bond-stake-sc", () => {
         3,
         new anchor.BN(100e9),
         new anchor.BN(Number(user_nft_leaf_schemas[2].nonce)),
-        false,
         Array.from(bs58.decode(user_nft_leaf_schemas[2].id)),
         Array.from(user_nft_leaf_schemas[2].dataHash),
         Array.from(user_nft_leaf_schemas[2].creatorHash)
@@ -2308,70 +2512,102 @@ describe("core-sol-bond-stake-sc", () => {
       ])
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
-
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    let userAccAfter = await program.account.addressBondsRewards.fetch(
       userBondsRewards
     );
 
-    const tolerance = normalWeighted * 0.0001;
-    const lowerBound = normalWeighted - tolerance;
-    const upperBound = normalWeighted + tolerance;
-
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
-        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
-      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    expect(userAccAfter.claimableAmount.toNumber()).to.equal(
+      userAccBefore.claimableAmount.toNumber() + 10e5
     );
 
-    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
-      userBondsRewards
-    );
-
-    let user_rewards = await calculateUserRewards(
-      addressBondsFetched.weightedLivelinessScore.toNumber(),
-      addressRewardsAccBefore.addressRewardsPerShare,
-      userBondsBefore.addressTotalBondAmount,
-      rewardsConfigPda,
-      true,
-      program
-    );
-
-    assert(
-      addressRewardsAccBefore.claimableAmount.toNumber() +
-        user_rewards / 10 ** 9 ===
-        userRewardsAcc.claimableAmount.toNumber()
+    expect(userAccAfter.addressRewardsPerShare.toNumber()).to.equal(
+      userAccBefore.addressRewardsPerShare.toNumber() + 10e3
     );
   });
 
-  it("Stake rewards user2", async () => {
+  it("Stake rewards user2 - no vault set (should fail)", async () => {
     const addressBondsRewards = PublicKey.findProgramAddressSync(
       [Buffer.from("address_bonds_rewards"), user2.publicKey.toBuffer()],
       program.programId
     )[0];
 
     const bond = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user2.publicKey.toBuffer(), Buffer.from([1])],
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
 
-    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
-      rewardsConfigPda
-    );
+    try {
+      let x = await program.methods
+        .stakeRewards(1, 1)
+        .signers([user2])
+        .accounts({
+          addressBondsRewards: addressBondsRewards,
+          bondConfig: bondConfigPda1,
+          rewardsConfig: rewardsConfigPda,
+          vaultConfig: vaultConfigPda,
+          bond: bond,
+          authority: user2.publicKey,
+        })
+        .rpc();
+    } catch (e) {
+      expect((e as anchor.AnchorError).error.errorCode.number).to.equal(6019);
+      expect((e as anchor.AnchorError).error.errorMessage).to.equal(
+        "Vault bond id mismatch"
+      );
+    }
+  });
 
-    let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(addressBondsRewards);
+  it("Set vault bond id 1 by user2", async () => {
+    const addressBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from("address_bonds_rewards"), user2.publicKey.toBuffer()],
+      program.programId
+    )[0];
 
-    let bondBefore = await program.account.bond.fetch(bond);
+    const bond = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
+      program.programId
+    )[0];
 
-    let userBondsBefore = await program.account.addressBondsRewards.fetch(
-      addressBondsRewards
-    );
+    await program.methods
+      .updateVaultBond(
+        1,
+        1,
+        new anchor.BN(Number(user2_nft_leaf_schemas[0].nonce))
+      )
+      .signers([user2])
+      .accounts({
+        addressBondsRewards: addressBondsRewards,
+        bond: bond,
+        bondConfig: bondConfigPda1,
+        authority: user2.publicKey,
+      })
+      .rpc();
+  });
+
+  it("Stake rewards user2 into vault bond", async () => {
+    const addressBondsRewards = PublicKey.findProgramAddressSync(
+      [Buffer.from("address_bonds_rewards"), user2.publicKey.toBuffer()],
+      program.programId
+    )[0];
+
+    const bond = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bond"),
+        user2.publicKey.toBuffer(),
+        new anchor.BN(1).toBuffer("le", 2),
+      ],
+      program.programId
+    )[0];
+
+    let bondAccBefore = await program.account.bond.fetch(bond);
 
     let x = await program.methods
       .stakeRewards(1, 1)
@@ -2386,49 +2622,22 @@ describe("core-sol-bond-stake-sc", () => {
       })
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      addressBondsRewards,
-      bondConfigPda1,
-      program
+    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
+      rewardsConfigPda
     );
-
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    let bondAccAfter = await program.account.bond.fetch(bond);
+    let userAcc = await program.account.addressBondsRewards.fetch(
       addressBondsRewards
     );
 
-    const tolerance = normalWeighted * 0.0001;
-    const lowerBound = normalWeighted - tolerance;
-    const upperBound = normalWeighted + tolerance;
-
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
-        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
-      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    expect(bondAccAfter.bondAmount.toNumber()).to.equal(
+      bondAccBefore.bondAmount.toNumber() + 2166600
     );
 
-    let userRewardsAcc = await program.account.addressBondsRewards.fetch(
-      addressBondsRewards
+    expect(userAcc.claimableAmount.toNumber()).to.equal(0);
+    expect(userAcc.addressRewardsPerShare.toNumber()).to.equal(
+      rewardsConfigAcc.rewardsPerShare.toNumber()
     );
-
-    let bondAfter = await program.account.bond.fetch(bond);
-
-    let user_rewards = await calculateUserRewards(
-      addressBondsFetched.weightedLivelinessScore.toNumber(),
-      addressRewardsAccBefore.addressRewardsPerShare,
-      userBondsBefore.addressTotalBondAmount,
-      rewardsConfigPda,
-      false,
-      program
-    );
-
-    assert(
-      addressRewardsAccBefore.claimableAmount.toNumber() +
-        user_rewards / 10 ** 9 +
-        bondBefore.bondAmount.toNumber() ===
-        bondAfter.bondAmount.toNumber()
-    );
-    assert(userRewardsAcc.claimableAmount.toNumber() === 0);
   });
 
   it("Claim rewards user", async () => {
@@ -2437,24 +2646,30 @@ describe("core-sol-bond-stake-sc", () => {
       program.programId
     )[0];
 
-    let addressRewardsAccBefore =
-      await program.account.addressBondsRewards.fetch(addressBondsRewards);
-    let userBondsBefore = await program.account.addressBondsRewards.fetch(
-      addressBondsRewards
-    );
+    const bond = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
+      program.programId
+    )[0];
 
-    let user_balance_before = await provider.connection.getTokenAccountBalance(
-      itheum_token_user_ata
-    );
+    let userBalanceBefore = (
+      await program.provider.connection.getTokenAccountBalance(
+        itheum_token_user_ata
+      )
+    ).value.amount;
 
     let x = await program.methods
-      .claimRewards(1)
+      .claimRewards(1, 2)
       .signers([user])
       .accounts({
         addressBondsRewards: addressBondsRewards,
         bondConfig: bondConfigPda1,
         rewardsConfig: rewardsConfigPda,
         vaultConfig: vaultConfigPda,
+        bond: bond,
         vault: vault_ata,
         mintOfTokenToReceive: itheum_token_mint.publicKey,
         authority: user.publicKey,
@@ -2462,51 +2677,28 @@ describe("core-sol-bond-stake-sc", () => {
       })
       .rpc();
 
-    let normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      addressBondsRewards,
-      bondConfigPda1,
-      program
-    );
-
-    let addressBondsFetched = await program.account.addressBondsRewards.fetch(
+    let userAccAfter = await program.account.addressBondsRewards.fetch(
       addressBondsRewards
     );
 
-    const tolerance = normalWeighted * 0.0001;
-    const lowerBound = normalWeighted - tolerance;
-    const upperBound = normalWeighted + tolerance;
+    let userBalanceAfter = (
+      await program.provider.connection.getTokenAccountBalance(
+        itheum_token_user_ata
+      )
+    ).value.amount;
 
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
-        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
-      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
+    let rewardsConfigAcc = await program.account.rewardsConfig.fetch(
+      rewardsConfigPda
     );
 
-    let user_rewards = await calculateUserRewards(
-      addressBondsFetched.weightedLivelinessScore.toNumber(),
-      addressRewardsAccBefore.addressRewardsPerShare,
-      userBondsBefore.addressTotalBondAmount,
-      rewardsConfigPda,
-      false,
-      program
+    expect(userAccAfter.addressRewardsPerShare.toNumber()).to.equal(
+      rewardsConfigAcc.rewardsPerShare.toNumber()
     );
-
-    let user_balance_after = await provider.connection.getTokenAccountBalance(
-      itheum_token_user_ata
+    expect(userAccAfter.claimableAmount.toNumber()).to.equal(0);
+    expect(userAccAfter.claimableAmount.toNumber()).to.equal(0);
+    expect(Number(userBalanceAfter)).to.equal(
+      Number(userBalanceBefore) + 3499800
     );
-
-    assert(
-      addressRewardsAccBefore.claimableAmount.toNumber() +
-        user_rewards / 10 ** 9 +
-        Number(user_balance_before.value.amount) ===
-        Number(user_balance_after.value.amount)
-    );
-
-    let addressRewardsAccAfter =
-      await program.account.addressBondsRewards.fetch(addressBondsRewards);
-
-    assert(addressRewardsAccAfter.claimableAmount.toNumber() === 0);
   });
 
   it("Withdraw bond 2 by user", async () => {
@@ -2516,9 +2708,19 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond2 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([2])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(2).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
+
+    let userBalanceBefore = (
+      await program.provider.connection.getTokenAccountBalance(
+        itheum_token_user_ata
+      )
+    ).value.amount;
 
     let x = await program.methods
       .withdraw(1, 2)
@@ -2536,28 +2738,17 @@ describe("core-sol-bond-stake-sc", () => {
       })
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
+    let userBalanceAfter = (
+      await program.provider.connection.getTokenAccountBalance(
+        itheum_token_user_ata
+      )
+    ).value.amount;
 
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
-      userBondsRewards
-    );
+    let bondAcc = await program.account.bond.fetch(bond2);
 
-    assert(addressBondsFetched.addressTotalBondAmount.toNumber() === 100e9);
-
-    const tolerance = normalWeighted * 0.001;
-    const lowerBound = normalWeighted - tolerance;
-    const upperBound = normalWeighted + tolerance;
-
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
-        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
-      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
-    );
+    expect(bondAcc.state).to.equal(0);
+    expect(bondAcc.bondAmount.toNumber()).to.equal(0);
+    expect(Number(userBalanceAfter)).to.equal(Number(750003499800));
   });
 
   it("Withdraw bond 3 by user", async () => {
@@ -2567,9 +2758,19 @@ describe("core-sol-bond-stake-sc", () => {
     )[0];
 
     const bond3 = PublicKey.findProgramAddressSync(
-      [Buffer.from("bond"), user.publicKey.toBuffer(), Buffer.from([3])],
+      [
+        Buffer.from("bond"),
+        user.publicKey.toBuffer(),
+        new anchor.BN(3).toBuffer("le", 2),
+      ],
       program.programId
     )[0];
+
+    let userBalanceBefore = (
+      await program.provider.connection.getTokenAccountBalance(
+        itheum_token_user_ata
+      )
+    ).value.amount;
 
     let x = await program.methods
       .withdraw(1, 3)
@@ -2587,153 +2788,16 @@ describe("core-sol-bond-stake-sc", () => {
       })
       .rpc();
 
-    const normalWeighted = await calculateWeightedLivelinessScore(
-      x,
-      userBondsRewards,
-      bondConfigPda1,
-      program
-    );
+    let userBalanceAfter = (
+      await program.provider.connection.getTokenAccountBalance(
+        itheum_token_user_ata
+      )
+    ).value.amount;
 
-    const addressBondsFetched = await program.account.addressBondsRewards.fetch(
-      userBondsRewards
-    );
+    let bondAcc = await program.account.bond.fetch(bond3);
 
-    assert(addressBondsFetched.addressTotalBondAmount.toNumber() === 0);
-
-    const tolerance = normalWeighted * 0.001;
-    const lowerBound = normalWeighted - tolerance;
-    const upperBound = normalWeighted + tolerance;
-
-    assert(
-      addressBondsFetched.weightedLivelinessScore.toNumber() >= lowerBound &&
-        addressBondsFetched.weightedLivelinessScore.toNumber() <= upperBound,
-      `Score ${addressBondsFetched.weightedLivelinessScore.toNumber()} is out of range!`
-    );
+    expect(bondAcc.state).to.equal(0);
+    expect(bondAcc.bondAmount.toNumber()).to.equal(0);
+    expect(Number(userBalanceAfter)).to.equal(Number(800003499800));
   });
 });
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function calculateTotalRewardsInInterval(
-  previous_slot: number,
-  rewardsConfigPda: PublicKey,
-  program: anchor.Program<CoreSolBondStakeSc>
-) {
-  let rewards_config = await program.account.rewardsConfig.fetch(
-    rewardsConfigPda
-  );
-
-  let slots = rewards_config.lastRewardSlot.toNumber() - previous_slot;
-
-  let total_rewards = rewards_config.rewardsPerSlot.mul(new anchor.BN(slots));
-
-  return total_rewards.toNumber();
-}
-
-// calculate user rewards based on the total rewards
-async function calculateUserRewards(
-  normalWeighted: number,
-  address_last_rewards_per_share: anchor.BN,
-  address_last_total_bond_amount: anchor.BN,
-  rewards_config: PublicKey,
-  bypassLiveliness: boolean,
-  program: anchor.Program<CoreSolBondStakeSc>
-) {
-  const rewardsAcc = await program.account.rewardsConfig.fetch(rewards_config);
-
-  let user_rewards = address_last_total_bond_amount.mul(
-    rewardsAcc.rewardsPerShare.sub(address_last_rewards_per_share)
-  );
-
-  if (normalWeighted >= 9500 || bypassLiveliness) {
-    return user_rewards.toNumber();
-  } else {
-    return (user_rewards.toNumber() * normalWeighted) / 10000;
-  }
-}
-
-async function calculateWeightedLivelinessScore(
-  signature: TransactionSignature,
-  userBondsPda: PublicKey,
-  bondsConfigPda: PublicKey,
-  program: anchor.Program<CoreSolBondStakeSc>
-) {
-  let newConn = new Connection("http://localhost:8899", "confirmed");
-
-  let sigStatus = await newConn.getSignatureStatus(signature);
-
-  let blockTime = await newConn.getBlockTime(sigStatus.context.slot);
-  if (!blockTime) {
-    throw new Error("Unable to fetch block time for the provided slot");
-  }
-
-  let current_timestamp = blockTime;
-
-  const userBondsAcc = await program.account.addressBondsRewards.fetch(
-    userBondsPda
-  );
-
-  const bondConfigAcc = await program.account.bondConfig.fetch(bondsConfigPda);
-
-  let totalBondAmount = new anchor.BN(0);
-  let totalBondWeight = new anchor.BN(0);
-
-  for (let bond_id = 1; bond_id <= userBondsAcc.currentIndex; bond_id++) {
-    const bond_pda = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("bond"),
-        userBondsAcc.address.toBuffer(),
-        Buffer.from([bond_id]),
-      ],
-      program.programId
-    )[0];
-
-    const bondAcc = await program.account.bond.fetch(bond_pda);
-
-    if (bondAcc.state === 0) {
-      continue;
-    }
-
-    const score = computeBondScore(
-      bondConfigAcc.lockPeriod.toNumber(),
-      current_timestamp,
-      bondAcc.unbondTimestamp.toNumber()
-    );
-
-    const bond_weight = bondAcc.bondAmount.mul(new anchor.BN(score));
-    totalBondWeight = totalBondWeight.add(bond_weight);
-
-    totalBondAmount = totalBondAmount.add(bondAcc.bondAmount);
-  }
-
-  if (
-    totalBondAmount.eq(new anchor.BN(0)) ||
-    totalBondWeight.eq(new anchor.BN(0))
-  ) {
-    return 0;
-  }
-  const weighted_score = totalBondWeight.div(totalBondAmount);
-
-  return weighted_score.toNumber();
-}
-
-function computeBondScore(
-  lockPeriod: number,
-  currentTimestamp: number,
-  unbondTimestamp: number
-): number {
-  if (currentTimestamp >= unbondTimestamp) {
-    return 0;
-  } else {
-    const difference = unbondTimestamp - currentTimestamp;
-
-    if (lockPeriod === 0) {
-      return 0;
-    } else {
-      const divResult = Math.floor(10000 / lockPeriod);
-      return divResult * difference;
-    }
-  }
-}

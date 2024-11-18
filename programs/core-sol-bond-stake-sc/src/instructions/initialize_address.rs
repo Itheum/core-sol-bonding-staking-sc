@@ -36,10 +36,10 @@ pub fn initialize_address<'info>(ctx: Context<InitializeAddress<'info>>) -> Resu
             address: ctx.accounts.authority.key(),
             address_total_bond_amount: 0,
             current_index: 0,
-            weighted_liveliness_score: 0,
             last_update_timestamp: get_current_timestamp()?,
             address_rewards_per_share: ctx.accounts.rewards_config.rewards_per_share,
             claimable_amount: 0,
+            vault_bond_id: 0,
             padding: [0; 16],
         });
 

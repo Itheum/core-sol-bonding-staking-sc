@@ -40,4 +40,6 @@ pub enum Errors {
     NotCreator,
     #[msg("Asset Id mismatch")]
     AssetIdMismatch,
+    #[msg("Vault bond id mismatch")]
+    VaultBondIdMismatch,
 }
