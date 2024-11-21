@@ -46,7 +46,7 @@ const mapProof = (proof: string[]): AccountMeta[] => {
 };
 
 const ITHEUM_TOKEN = process.env.ITHEUM_TOKEN; // load on ENV based on devnet or mainnet
-const programId = new PublicKey("9s6LjFX1UjUe4876GAzZ6nWt7Sh45fje96trHx3Wpdbz"); // devnet
+const programId = new PublicKey("ZXPbJewsvYvhfW1VMzU8pkDK8VTW4Qwx8cC3paPxMBR"); // devnet
 const connection = new Connection(
   clusterApiUrl(process.env.CLUSTER_URL as Cluster),
   "confirmed"

@@ -66,7 +66,7 @@ Once you build, a new Program address is generated (so long as you don't have a 
 
 ```bash
 $ anchor keys list
-core-sol-bond-stake-sc: CmFnuyhgGYsPUREus2NaXos9YBwWCh1NbXnJxG9HDnLY
+core-sol-bond-stake-sc: B1JpBsoEdseekQYhYGcYX847XUhcU1BRLC9hemTxWkgP
 ```
 
 Replace the default value of `program_id` with this new value:
@@ -75,7 +75,7 @@ Replace the default value of `program_id` with this new value:
 # Anchor.toml
 
 [programs.localnet]
-core-sol-bond-stake-sc = "DRxp3EJv4hGQDze6Evf515KE1YwVgYNv6PiDp1dqF4pK"
+core-sol-bond-stake-sc = "B1JpBsoEdseekQYhYGcYX847XUhcU1BRLC9hemTxWkgP"
 
 ...
 ```
@@ -93,7 +93,7 @@ declare_id!("DRxp3EJv4hGQDze6Evf515KE1YwVgYNv6PiDp1dqF4pK");
 ALSO, note that you need to "hardcode" the General Admin wallet in constants.rs. This general admin is the one that can call initializeContract.
 
 ```
-pub const ADMIN_PUBKEY: Pubkey = pubkey!("AxDG4CDKrn8s3a1caY69nQYCjR8YnxqjhMPwhUGFKL2Q");
+pub const ADMIN_PUBKEY: Pubkey = pubkey!("1KsJeTvmJaWsAdZba7V7sxQ7zPFKQp1seh2XP9ZHnsd");
 ```
 
 We re-Build the program: (DO NOT delete the `target` folder this time before running)
@@ -116,6 +116,9 @@ you can also toggle deploying wallet by `wallet = "usb://ledger?key=1"` or `wall
 
 Deploy command for Anchor:
 `anchor deploy`
+
+if it's timing out, we can try more retry attempts: (this will only work in 0.30 anchor cli, so we need to upgrade for this)
+`anchor deploy -- --max-sign-attempts 10`
 
 **Ledger based deploys**
 NOTE: that we can't deploy via Anchor as we found it not too unstable when using Ledger, so we used the Solana CLI.
@@ -202,7 +205,7 @@ $ anchor test
 
 Configure your deployed contract using the interactions node script.
 
-Go into the interactions Folder, and run the script as `bun index.ts` as you comment out sections you want to run. We use `bun` so you can run the TS files. You can also use `npx ts-node index.ts `. Note that sometimes some commands can fail with an error like "TokenAccountNotFound" -- this may just be due to congestion, so try again or add some "sleeps" between tasks.
+Go into the interactions Folder, and run the script as `bun index-devnet.ts` as you comment out sections you want to run. We use `bun` so you can run the TS files. You can also use `npx ts-node index-devnet.ts`. Note that sometimes some commands can fail with an error like "TokenAccountNotFound" -- this may just be due to congestion, so try again or add some "sleeps" between tasks.
 
 ## Upgrade a Deployed Smart Contract
 
