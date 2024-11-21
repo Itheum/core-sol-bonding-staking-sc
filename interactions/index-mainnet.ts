@@ -46,7 +46,7 @@ const mapProof = (proof: string[]): AccountMeta[] => {
 };
 
 const ITHEUM_TOKEN = process.env.ITHEUM_TOKEN; // load on ENV based on devnet or mainnet
-const programId = new PublicKey("CmFnuyhgGYsPUREus2NaXos9YBwWCh1NbXnJxG9HDnLY"); // mainnet
+const programId = new PublicKey("B1JpBsoEdseekQYhYGcYX847XUhcU1BRLC9hemTxWkgP"); // mainnet
 const connection = new Connection(
   clusterApiUrl(process.env.CLUSTER_URL as Cluster),
   "confirmed"
@@ -76,25 +76,16 @@ const PRIVATE_KEY_STR = process.env.PROGRAM_ADMIN_WALLET; // load on ENV based o
 const privateKeys = PRIVATE_KEY_STR.split(",").map(Number);
 const admin = Keypair.fromSecretKey(Uint8Array.from(privateKeys));
 
-/*
-  e.g. devnet
-  1M Rewards
-  Rewards per block (1e4) = .000010000
-    400 ms a slot * on day days avg oer month = we have around 78,840,000 slots per year
-    = 78,840,000 * .00001
-    = 788.4 rewards for everyone to share
-*/
-
 // Create the transaction using Anchor's methods API
 const initializeContractMainnet = async () => {
   const transaction = await program.methods
     .initializeContract(
       1, // Index of the Collection Config (we cab have different collections. e.g. NFMeID we can have a setup and another one we can have a diff setup etc)
-      new anchor.BN(7884000), // Lock period : 7884000 is 3 months
-      new anchor.BN(999e9), // Bonding amount : 999e9 = 888 ITH
-      new anchor.BN(2e8), // Rewards per slot : 2e8 (.200000000 ITH)
-      new anchor.BN(4000), // Max APR in % : 4000 is 40%
-      new anchor.BN(8000) // Withdraw penalty in % : 8000 is 80%
+      new anchor.BN(7884000), // Lock period 7884000s is around 3 months
+      new anchor.BN(999e9), // Bonding amount (999e9 = 999 ITHEUM)
+      new anchor.BN(2e8), // Rewards per slot .200000000 every block (so 8M ITHEUM tokens vest in 6 months)
+      new anchor.BN(4000), // Max APR in % (4000 is 40%)
+      new anchor.BN(8000) // Withdraw penalty in % (8000 is 80%)
     )
     .signers([admin])
     .accounts({
@@ -109,10 +100,11 @@ const initializeContractMainnet = async () => {
     admin,
   ]);
 
+  console.log("transactionSignature");
   console.log(transactionSignature);
 };
 
-initializeContractMainnet();
+// initializeContractMainnet();
 
 const initializeVaultMainnet = async () => {
   const vault_ata = await getOrCreateAssociatedTokenAccount(
@@ -125,7 +117,7 @@ const initializeVaultMainnet = async () => {
   );
 
   // we delay so the ATA is ready or we may get a TokenAccountNotFoundError not found error
-  await new Promise((resolve) => setTimeout(resolve, 5000));
+  await new Promise((resolve) => setTimeout(resolve, 10000));
 
   const tx = await program.methods
     .initializeVault()
@@ -140,6 +132,7 @@ const initializeVaultMainnet = async () => {
 
   const transactionSignature = await connection.sendTransaction(tx, [admin]);
 
+  console.log("transactionSignature");
   console.log(transactionSignature);
 };
 
@@ -157,6 +150,7 @@ const setBondStateActiveMainnet = async () => {
 
   const transactionSignature = await connection.sendTransaction(tx, [admin]);
 
+  console.log("transactionSignature");
   console.log(transactionSignature);
 };
 
@@ -207,10 +201,11 @@ const addRewardsMainnet = async (amount: anchor.BN) => {
 
   const transactionSignature = await connection.sendTransaction(tx, [admin]);
 
+  console.log("transactionSignature");
   console.log(transactionSignature);
 };
 
-// addRewardsMainnet(new anchor.BN(1000000e9)); // 1000000e9 is 1M
+// addRewardsMainnet(new anchor.BN(8000000e9)); // 8000000e9 is 1M
 
 const updateRewardsPerSlotMainnet = async (rewards: number) => {
   const tx = await program.methods

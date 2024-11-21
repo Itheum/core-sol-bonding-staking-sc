@@ -5,14 +5,14 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-core_sol_bond_stake_sc = "9s6LjFX1UjUe4876GAzZ6nWt7Sh45fje96trHx3Wpdbz"
+core_sol_bond_stake_sc = "B1JpBsoEdseekQYhYGcYX847XUhcU1BRLC9hemTxWkgP"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
-wallet = "/Users/USER/Documents/Source/Software/core-sol-bonding-staking-sc/devnet_wal_deployer_program_core_sol_bonding_staking_GoGkBc38gDYbsiw3HfkPCQvC4K9cuqLwqJ6hTAV7rG1p.json"
+cluster = "mainnet"
+wallet = "/Users/XX/Documents/Source/Software/core-sol-bonding-staking-sc/XXX.json"
 
 [scripts]
 test = "yarn run ts-mocha --runInBand  -p ./tsconfig.json -t 1000000 tests/**/*.ts"
